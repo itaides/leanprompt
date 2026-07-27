@@ -48,9 +48,12 @@ canonical JSON). The Rust and Go ports assert byte-equality against the
 golden vectors in [`parity/`](parity/), so identical inputs produce
 identical compressed output in every language.
 
-## 60-second example (TypeScript)
+## Usage
 
-Keep the official SDK you already use and hand it a compressing `fetch`:
+Full option reference (every field, every default, per-language) lives in
+[`CONFIG.md`](CONFIG.md). A few common patterns:
+
+### TypeScript — keep your official SDK, compress on the wire
 
 ```ts
 import OpenAI from "openai";
@@ -71,9 +74,85 @@ const response = await client.chat.completions.create({
 console.log(response.usage.leanpromptTokensSaved);
 ```
 
-Every SDK also exposes the core API directly (`Middleware` /
-`compress_messages` / `CompressMessages`) plus **SelfLLM** — delegation of
-summarization to a cheap model (Anthropic / OpenAI / Gemini) over raw HTTP.
+### TypeScript — wrap an existing client instance instead
+
+For SDKs (or SDK wrappers) that don't accept a custom `fetch`:
+
+```ts
+import Anthropic from "@anthropic-ai/sdk";
+import { wrap } from "leanprompt";
+
+const client = wrap(new Anthropic(), {
+    mode: "on",
+    routing: { prose: "extract" },
+});
+
+const response = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    messages: [{ role: "user", content: LONG_DOCUMENT }],
+});
+```
+
+### TypeScript — no official SDK at all (minimal built-in client)
+
+```ts
+import { OpenAI } from "leanprompt"; // leanprompt's own minimal client, not the `openai` package
+
+const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    leanpromptConfig: { mode: "on", routing: { prose: "extract" } },
+});
+const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: LONG_DOCUMENT }],
+});
+```
+
+### TypeScript — call the compression pipeline directly
+
+Useful outside an HTTP request/response cycle (batch jobs, custom transports):
+
+```ts
+import { Middleware } from "leanprompt";
+
+const mw = new Middleware({ mode: "on", routing: { prose: "extract" } });
+const [compressed, stats] = mw.compressMessages(messages);
+console.log(stats.inputTokens, stats.outputTokens, stats.method);
+```
+
+### Rust
+
+```rust
+use leanprompt::{json, Config, Middleware};
+
+let messages = json::parse(r#"[{"role":"user","content":"..."}]"#)?;
+let mw = Middleware::new(Config {
+    mode: "on".into(),
+    routing: vec![("prose".into(), "extract".into())],
+    extract_ratio_millis: 400,
+    ..Config::default()
+});
+let (compressed, stats) = mw.compress_messages(messages.as_arr().unwrap());
+```
+
+### Go
+
+```go
+import leanprompt "github.com/itaides/leanprompt/go"
+
+mw := leanprompt.NewMiddleware(leanprompt.Config{
+    Mode:               "on",
+    Routing:            map[string]string{"prose": "extract"},
+    ExtractRatioMillis: 400,
+})
+compressed, stats := mw.CompressMessages(messages) // []map[string]any
+```
+
+Every SDK also exposes **SelfLLM** — delegating summarization to a cheap
+model (Anthropic / OpenAI / Gemini) over raw HTTP instead of running the
+local algorithm. See [`CONFIG.md`](CONFIG.md#selfllm--llm-delegated-summarization)
+for its options and each package's README for the language-specific API.
 
 ## What savings to expect — honest math
 
@@ -97,11 +176,12 @@ dedup/purge wins:
 ## Repository layout
 
 ```
-ts/       TypeScript SDK — reference implementation (bun test)
-rust/     Rust crate (cargo test)
-go/       Go module (go test ./...)
-parity/   golden vectors generated from ts/ (bun ts/scripts/gen-parity.ts)
-docs/     parity-spec.md — the normative cross-language spec
+ts/         TypeScript SDK — reference implementation (bun test)
+rust/       Rust crate (cargo test)
+go/         Go module (go test ./...)
+parity/     golden vectors generated from ts/ (bun ts/scripts/gen-parity.ts)
+docs/       parity-spec.md — the normative cross-language spec
+CONFIG.md   every configuration option, all three languages
 ```
 
 ## Security

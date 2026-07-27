@@ -6,7 +6,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript%2FBun-✓-blue)
 ![Rust](https://img.shields.io/badge/Rust-✓-orange)
 ![Go](https://img.shields.io/badge/Go-✓-00ADD8)
-[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 **Zero-dependency prompt compression for LLM applications.**
 One deterministic algorithm, three native SDKs — TypeScript/Bun, Rust and Go —
@@ -111,11 +111,4 @@ vulnerability.
 
 ## License
 
-[PolyForm Noncommercial License 1.0.0](LICENSE), with a small-team
-commercial exception: **free for commercial use** if your organization has
-5 or fewer people, or under $20,000 in trailing-12-month revenue. Otherwise,
-commercial use requires a paid license — contact itaios052@gmail.com.
-
-Noncommercial use (personal, research, evaluation, nonprofits, education,
-government) is free without restriction. See [LICENSE](LICENSE) for the
-full terms.
+MIT. See [LICENSE](LICENSE).

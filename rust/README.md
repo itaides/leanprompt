@@ -29,4 +29,4 @@ one-method `HttpPost` trait with whatever HTTP client you already use
 cargo test    # includes the golden-vector parity suite
 ```
 
-PolyForm Noncommercial License 1.0.0, with a small-team commercial exception. See the repo root `LICENSE`.
+MIT. See the repo root `LICENSE`.

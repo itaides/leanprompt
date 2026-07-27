@@ -27,4 +27,4 @@ out, stats, err := s.Compress(messages)
 go test ./...    # includes the golden-vector parity suite
 ```
 
-MIT. See the repo root `LICENSE`.
+PolyForm Noncommercial License 1.0.0, with a small-team commercial exception. See the repo root `LICENSE`.

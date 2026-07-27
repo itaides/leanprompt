@@ -2,7 +2,7 @@
 name = "leanprompt"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license-file = "LICENSE"
 description = "Zero-dependency prompt compression for LLM applications: deterministic extractive compressor, classifier-gated pipeline."
 repository = "https://github.com/itaides/leanprompt"
 

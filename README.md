@@ -1,5 +1,13 @@
 # leanprompt
 
+[![CI](https://github.com/itaides/leanprompt/actions/workflows/ci.yml/badge.svg)](https://github.com/itaides/leanprompt/actions/workflows/ci.yml)
+![zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)
+![no ML model](https://img.shields.io/badge/ML%20model-none-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript%2FBun-✓-blue)
+![Rust](https://img.shields.io/badge/Rust-✓-orange)
+![Go](https://img.shields.io/badge/Go-✓-00ADD8)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey)](LICENSE)
+
 **Zero-dependency prompt compression for LLM applications.**
 One deterministic algorithm, three native SDKs — TypeScript/Bun, Rust and Go —
 with byte-identical output across all of them.
@@ -13,6 +21,17 @@ greedy selection to a keep-ratio, emitted in original order.
 A heuristic **classifier gates everything**: code, stack traces, JSON blobs
 and tool-call blocks are never touched; prohibitions ("do not …") always
 survive; system messages and the most recent turns are never compressed.
+
+## How it's different
+
+| | leanprompt | Neural compressors (e.g. LLMLingua-2) |
+|---|---|---|
+| Model download | none | ~1 GB+ |
+| Runtime dependencies | zero, in all 3 languages | GPU/ONNX runtime, tokenizer, model weights |
+| Cold start | instant | model load (seconds, first call) |
+| Output | deterministic, auditable | probabilistic, model-version-dependent |
+| Cross-language parity | byte-identical by spec | not applicable — single implementation |
+| Code/JSON/tool-call safety | classifier-gated, never touched | depends on wrapper logic |
 
 ## The SDKs
 
@@ -67,6 +86,14 @@ dedup/purge wins:
 - code/tool-heavy agent histories: substantially less — measure on your own
   traffic before quoting a number
 
+## Commands / test reference
+
+| Language | Test | Lint / typecheck | Regenerate parity vectors |
+|---|---|---|---|
+| TypeScript | `bun test` | `bun x tsc --noEmit` | `bun scripts/gen-parity.ts` (from `ts/`) |
+| Rust | `cargo test` | `cargo clippy --all-targets -- -D warnings` | — (asserts against `parity/`) |
+| Go | `go test ./...` | `go vet ./...` && `gofmt -l .` | — (asserts against `parity/`) |
+
 ## Repository layout
 
 ```
@@ -77,6 +104,18 @@ parity/   golden vectors generated from ts/ (bun ts/scripts/gen-parity.ts)
 docs/     parity-spec.md — the normative cross-language spec
 ```
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for supported versions and how to report a
+vulnerability.
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+[PolyForm Noncommercial License 1.0.0](LICENSE), with a small-team
+commercial exception: **free for commercial use** if your organization has
+5 or fewer people, or under $20,000 in trailing-12-month revenue. Otherwise,
+commercial use requires a paid license — contact itaios052@gmail.com.
+
+Noncommercial use (personal, research, evaluation, nonprofits, education,
+government) is free without restriction. See [LICENSE](LICENSE) for the
+full terms.

@@ -88,4 +88,4 @@ bun x tsc --noEmit
 bun scripts/gen-parity.ts   # regenerate ../parity golden vectors
 ```
 
-MIT. See the repo root `LICENSE`.
+PolyForm Noncommercial License 1.0.0, with a small-team commercial exception. See the repo root `LICENSE`.

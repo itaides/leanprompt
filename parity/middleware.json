@@ -1,0 +1,72 @@
+{
+  "config": {
+    "mode": "on",
+    "trigger": {
+      "thresholdTokens": 10
+    },
+    "routing": {
+      "prose": "extract"
+    },
+    "extract": {
+      "ratio": 0.5
+    },
+    "protect": {
+      "lastTurns": 1
+    }
+  },
+  "input": [
+    {
+      "role": "system",
+      "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+    },
+    {
+      "role": "user",
+      "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+    },
+    {
+      "role": "user",
+      "content": "import os\nfrom sys import path\n\ndef main():\n    return path"
+    },
+    {
+      "role": "user",
+      "content": "{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},"
+    },
+    {
+      "role": "user",
+      "content": "The nightly build failed on runner 12 with a disk space exhaustion error. The nightly build failed on runner 14 with a disk space exhaustion error. Cleaning the docker cache on each runner freed roughly forty gigabytes of space. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent."
+    },
+    {
+      "role": "user",
+      "content": "Please summarize the report."
+    }
+  ],
+  "output": [
+    {
+      "role": "system",
+      "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+    },
+    {
+      "role": "user",
+      "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+    },
+    {
+      "role": "user",
+      "content": "import os\nfrom sys import path\n\ndef main():\n    return path"
+    },
+    {
+      "role": "user",
+      "content": "{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},"
+    },
+    {
+      "role": "user",
+      "content": "The nightly build failed on runner 12 with a disk space exhaustion error. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent."
+    },
+    {
+      "role": "user",
+      "content": "Please summarize the report."
+    }
+  ],
+  "inputTokens": 1347,
+  "outputTokens": 1184,
+  "method": "hybrid"
+}

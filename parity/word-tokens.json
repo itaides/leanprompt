@@ -1,0 +1,67 @@
+[
+  {
+    "text": "Hello, World! x2",
+    "tokens": [
+      "hello",
+      "world",
+      "x2"
+    ]
+  },
+  {
+    "text": "The café's naïve façade—remarkably—survived the 2019 storm über alles.",
+    "tokens": [
+      "the",
+      "café",
+      "s",
+      "naïve",
+      "façade",
+      "remarkably",
+      "survived",
+      "the",
+      "2019",
+      "storm",
+      "über",
+      "alles"
+    ]
+  },
+  {
+    "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfor",
+    "tokens": [
+      "the",
+      "deployment",
+      "pipeline",
+      "failed",
+      "at",
+      "14",
+      "32",
+      "utc",
+      "on",
+      "cluster",
+      "gamma",
+      "7",
+      "because",
+      "the",
+      "credential",
+      "rotation",
+      "job",
+      "removed",
+      "the",
+      "token",
+      "before",
+      "the",
+      "release",
+      "step",
+      "consumed",
+      "it",
+      "basically",
+      "the",
+      "whole",
+      "thing",
+      "is",
+      "a",
+      "matter",
+      "of",
+      "unfor"
+    ]
+  }
+]

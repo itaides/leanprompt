@@ -1,0 +1,166 @@
+[
+  {
+    "name": "long-prose-500",
+    "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.",
+    "ratioMillis": 500,
+    "sentences": [
+      {
+        "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it.",
+        "listItem": false
+      },
+      {
+        "text": "Basically the whole thing is a matter of unfortunate timing in the scheduler.",
+        "listItem": false
+      },
+      {
+        "text": "The release step retried three times with exponential backoff and then gave up permanently.",
+        "listItem": false
+      },
+      {
+        "text": "The retry logic waited 2s, then 4s, then 8s between the attempts before failing.",
+        "listItem": false
+      },
+      {
+        "text": "Engineering has been informed about the incident and they are looking into it now.",
+        "listItem": false
+      },
+      {
+        "text": "The team decided to pin the rotation job to run only after release windows close.",
+        "listItem": false
+      },
+      {
+        "text": "This decision prevents the race condition from recurring in future deployments.",
+        "listItem": false
+      },
+      {
+        "text": "Do not restart the rotation job manually while a release is in progress.",
+        "listItem": false
+      },
+      {
+        "text": "As mentioned earlier, the timing issue is the root cause of the whole problem.",
+        "listItem": false
+      },
+      {
+        "text": "The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.",
+        "listItem": false
+      }
+    ],
+    "selected": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+  },
+  {
+    "name": "long-prose-300",
+    "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.",
+    "ratioMillis": 300,
+    "sentences": [
+      {
+        "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it.",
+        "listItem": false
+      },
+      {
+        "text": "Basically the whole thing is a matter of unfortunate timing in the scheduler.",
+        "listItem": false
+      },
+      {
+        "text": "The release step retried three times with exponential backoff and then gave up permanently.",
+        "listItem": false
+      },
+      {
+        "text": "The retry logic waited 2s, then 4s, then 8s between the attempts before failing.",
+        "listItem": false
+      },
+      {
+        "text": "Engineering has been informed about the incident and they are looking into it now.",
+        "listItem": false
+      },
+      {
+        "text": "The team decided to pin the rotation job to run only after release windows close.",
+        "listItem": false
+      },
+      {
+        "text": "This decision prevents the race condition from recurring in future deployments.",
+        "listItem": false
+      },
+      {
+        "text": "Do not restart the rotation job manually while a release is in progress.",
+        "listItem": false
+      },
+      {
+        "text": "As mentioned earlier, the timing issue is the root cause of the whole problem.",
+        "listItem": false
+      },
+      {
+        "text": "The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.",
+        "listItem": false
+      }
+    ],
+    "selected": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Do not restart the rotation job manually while a release is in progress. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+  },
+  {
+    "name": "repetitive-600",
+    "text": "The nightly build failed on runner 12 with a disk space exhaustion error. The nightly build failed on runner 14 with a disk space exhaustion error. Cleaning the docker cache on each runner freed roughly forty gigabytes of space. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent.",
+    "ratioMillis": 600,
+    "sentences": [
+      {
+        "text": "The nightly build failed on runner 12 with a disk space exhaustion error.",
+        "listItem": false
+      },
+      {
+        "text": "The nightly build failed on runner 14 with a disk space exhaustion error.",
+        "listItem": false
+      },
+      {
+        "text": "Cleaning the docker cache on each runner freed roughly forty gigabytes of space.",
+        "listItem": false
+      },
+      {
+        "text": "The team added a scheduled cache cleanup job that runs every morning at 06:00.",
+        "listItem": false
+      },
+      {
+        "text": "It also alerts the on-call engineer when free space drops below ten percent.",
+        "listItem": false
+      }
+    ],
+    "selected": "The nightly build failed on runner 12 with a disk space exhaustion error. Cleaning the docker cache on each runner freed roughly forty gigabytes of space. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent."
+  },
+  {
+    "name": "listy-500",
+    "text": "Deployment checklist for the gamma cluster rollout process.\n- verify the release branch is green in CI\n- announce the deployment window in the operations channel\n- pin the credential rotation job before starting\n- run the smoke suite against the canary environment\n1. take a database snapshot first\n2. apply the migration scripts in order\nThe rollback procedure is documented in runbooks/gamma-rollback.md for emergencies.",
+    "ratioMillis": 500,
+    "sentences": [
+      {
+        "text": "Deployment checklist for the gamma cluster rollout process.",
+        "listItem": false
+      },
+      {
+        "text": "- verify the release branch is green in CI",
+        "listItem": true
+      },
+      {
+        "text": "- announce the deployment window in the operations channel",
+        "listItem": true
+      },
+      {
+        "text": "- pin the credential rotation job before starting",
+        "listItem": true
+      },
+      {
+        "text": "- run the smoke suite against the canary environment",
+        "listItem": true
+      },
+      {
+        "text": "1. take a database snapshot first",
+        "listItem": true
+      },
+      {
+        "text": "2. apply the migration scripts in order",
+        "listItem": true
+      },
+      {
+        "text": "The rollback procedure is documented in runbooks/gamma-rollback.md for emergencies.",
+        "listItem": false
+      }
+    ],
+    "selected": "Deployment checklist for the gamma cluster rollout process. 1. take a database snapshot first 2. apply the migration scripts in order The rollback procedure is documented in runbooks/gamma-rollback.md for emergencies."
+  }
+]

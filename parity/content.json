@@ -1,0 +1,97 @@
+[
+  {
+    "name": "plain-string",
+    "message": {
+      "role": "user",
+      "content": "hello world"
+    },
+    "text": "hello world"
+  },
+  {
+    "name": "empty",
+    "message": {
+      "role": "user",
+      "content": ""
+    },
+    "text": ""
+  },
+  {
+    "name": "tool-use-canonical-json",
+    "message": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Running the search now."
+        },
+        {
+          "type": "tool_use",
+          "id": "t1",
+          "name": "grep",
+          "input": {
+            "query": "foo",
+            "limit": 10,
+            "path": "src/"
+          }
+        }
+      ]
+    },
+    "text": "Running the search now.\n[tool_use grep] {\"limit\":10,\"path\":\"src/\",\"query\":\"foo\"}"
+  },
+  {
+    "name": "tool-result-nested",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t1",
+          "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+        },
+        {
+          "type": "tool_result",
+          "tool_use_id": "t2",
+          "content": "ok\n```\nraw output\n```"
+        }
+      ]
+    },
+    "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.\nok\n```\nraw output\n```"
+  },
+  {
+    "name": "document-image-thinking",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "document",
+          "source": {
+            "data": "doc source data"
+          }
+        },
+        {
+          "type": "image",
+          "source": {
+            "data": "base64"
+          }
+        },
+        {
+          "type": "thinking",
+          "thinking": "private"
+        },
+        {
+          "type": "text",
+          "text": "visible text"
+        }
+      ]
+    },
+    "text": "doc source data\nvisible text"
+  },
+  {
+    "name": "unicode",
+    "message": {
+      "role": "user",
+      "content": "The café's naïve façade—remarkably—survived the 2019 storm über alles."
+    },
+    "text": "The café's naïve façade—remarkably—survived the 2019 storm über alles."
+  }
+]

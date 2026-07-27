@@ -1,0 +1,66 @@
+[
+  {
+    "name": "prose",
+    "message": {
+      "role": "user",
+      "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+    },
+    "label": "prose"
+  },
+  {
+    "name": "code-prefixes",
+    "message": {
+      "role": "user",
+      "content": "import os\nfrom sys import path\n\ndef main():\n    return path"
+    },
+    "label": "code"
+  },
+  {
+    "name": "fenced",
+    "message": {
+      "role": "user",
+      "content": "Here is the fix:\n```py\nprint('hi')\n```"
+    },
+    "label": "code"
+  },
+  {
+    "name": "traceback",
+    "message": {
+      "role": "user",
+      "content": "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: nope"
+    },
+    "label": "error"
+  },
+  {
+    "name": "rust-panic",
+    "message": {
+      "role": "user",
+      "content": "thread 'main' panicked at src/main.rs:12:5"
+    },
+    "label": "error"
+  },
+  {
+    "name": "json-blob",
+    "message": {
+      "role": "user",
+      "content": "{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},\n{\"id\": 123, \"name\": \"row\", \"status\": \"ok\", \"tags\": [\"a\"]},"
+    },
+    "label": "structured"
+  },
+  {
+    "name": "empty",
+    "message": {
+      "role": "user",
+      "content": "  "
+    },
+    "label": "unknown"
+  },
+  {
+    "name": "cjk",
+    "message": {
+      "role": "user",
+      "content": "これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。これは長い日本語の文章です。トークンの推定は難しい。"
+    },
+    "label": "prose"
+  }
+]

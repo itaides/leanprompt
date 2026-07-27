@@ -1,0 +1,12 @@
+[package]
+name = "leanprompt"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Zero-dependency prompt compression for LLM applications: deterministic extractive compressor, classifier-gated pipeline."
+repository = "https://github.com/itaides/leanprompt"
+
+# Zero dependencies is the point. JSON, SHA-256 and all text handling are
+# implemented in-crate against docs/parity-spec.md. Provider HTTP transport
+# is a trait the caller implements (bring-your-own HTTP client).
+[dependencies]

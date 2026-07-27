@@ -1,0 +1,52 @@
+{
+    "name": "leanprompt",
+    "version": "0.1.0",
+    "description": "Zero-dependency prompt compression for LLM applications: deterministic extractive compressor, classifier-gated pipeline, fetch middleware and minimal clients.",
+    "keywords": [
+        "llm",
+        "prompt-compression",
+        "anthropic",
+        "openai",
+        "gemini",
+        "rag",
+        "context",
+        "tokens"
+    ],
+    "author": "itaides",
+    "license": "MIT",
+    "homepage": "https://github.com/itaides/leanprompt",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/itaides/leanprompt.git",
+        "directory": "ts"
+    },
+    "bugs": {
+        "url": "https://github.com/itaides/leanprompt/issues"
+    },
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "typecheck": "tsc --noEmit",
+        "test": "bun test",
+        "clean": "rm -rf dist"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "^5.5.0"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}

@@ -1,0 +1,20 @@
+# Node / TS SDK
+node_modules/
+ts/dist/
+ts/package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Env files
+.env
+.env.local
+
+# Local agent notes (generated)
+CLAUDE.md

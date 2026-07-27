@@ -1,0 +1,76 @@
+{
+  "input": [
+    {
+      "role": "user",
+      "content": "Error: catastrophic failure with a large payload attached here"
+    },
+    {
+      "role": "user",
+      "content": "repeated question"
+    },
+    {
+      "role": "assistant",
+      "content": "answer one"
+    },
+    {
+      "role": "user",
+      "content": "repeated question"
+    },
+    {
+      "role": "assistant",
+      "content": "answer two"
+    },
+    {
+      "role": "user",
+      "content": "final ask"
+    }
+  ],
+  "dedup": [
+    {
+      "role": "user",
+      "content": "Error: catastrophic failure with a large payload attached here"
+    },
+    {
+      "role": "user",
+      "content": "repeated question"
+    },
+    {
+      "role": "assistant",
+      "content": "answer one"
+    },
+    {
+      "role": "assistant",
+      "content": "answer two"
+    },
+    {
+      "role": "user",
+      "content": "final ask"
+    }
+  ],
+  "purgeAfter2": [
+    {
+      "role": "user",
+      "content": "[errored output purged for context compaction]"
+    },
+    {
+      "role": "user",
+      "content": "repeated question"
+    },
+    {
+      "role": "assistant",
+      "content": "answer one"
+    },
+    {
+      "role": "user",
+      "content": "repeated question"
+    },
+    {
+      "role": "assistant",
+      "content": "answer two"
+    },
+    {
+      "role": "user",
+      "content": "final ask"
+    }
+  ]
+}

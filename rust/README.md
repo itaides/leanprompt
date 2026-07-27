@@ -29,4 +29,23 @@ one-method `HttpPost` trait with whatever HTTP client you already use
 cargo test    # includes the golden-vector parity suite
 ```
 
+## Publishing (crates.io)
+
+```bash
+# 1. bump "version" in Cargo.toml (keep it in step with ts/package.json
+#    and go's next tag — the three SDKs claim byte-identical behavior)
+cargo test
+cargo clippy --all-targets -- -D warnings
+
+cargo login <token>          # one-time, if not already authenticated
+cargo publish --dry-run      # verifies the package builds standalone,
+                              # shows exactly what will be uploaded
+cargo publish
+```
+
+`rust/LICENSE` is bundled in the published package alongside the SPDX
+`license = "MIT"` field in `Cargo.toml` — recommended by crates.io and
+already present. Publishing is permanent per version — `cargo publish
+--dry-run` first is cheap insurance.
+
 MIT. See the repo root `LICENSE`.

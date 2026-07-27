@@ -47,6 +47,33 @@ import { wrap } from "leanprompt";
 const client = wrap(new OpenAI(), { mode: "on", routing: { prose: "extract" } });
 ```
 
+## LangChain.js
+
+`ChatOpenAI` and `ChatAnthropic` both build their underlying client from a
+`configuration`/`clientOptions` object that accepts a custom `fetch` — the
+same hook `leanpromptFetch` uses. `leanprompt/langchain` is a separate
+subpath export that names that wiring; it adds **no dependency** to the
+core `leanprompt` import (`@langchain/*` are optional peer dependencies,
+declared only so the subpath's intended compatibility is documented):
+
+```ts
+import { ChatOpenAI } from "@langchain/openai";
+import { leanpromptLangChain } from "leanprompt/langchain";
+
+const model = new ChatOpenAI({
+    configuration: leanpromptLangChain({ mode: "on", routing: { prose: "extract" } }),
+});
+```
+
+```ts
+import { ChatAnthropic } from "@langchain/anthropic";
+import { leanpromptLangChain } from "leanprompt/langchain";
+
+const model = new ChatAnthropic({
+    clientOptions: leanpromptLangChain({ mode: "on", routing: { prose: "extract" } }),
+});
+```
+
 ## Minimal built-in clients
 
 For simple non-streaming chat calls you can skip the official SDKs entirely:
@@ -87,5 +114,24 @@ bun test               # 110 tests incl. quality gates
 bun x tsc --noEmit
 bun scripts/gen-parity.ts   # regenerate ../parity golden vectors
 ```
+
+## Publishing (npm)
+
+```bash
+# 1. bump "version" in package.json (keep it in step with rust/Cargo.toml
+#    and go's next tag — the three SDKs claim byte-identical behavior)
+bun install
+bun run build            # tsc → dist/
+bun x tsc --noEmit
+bun test
+
+npm login                # one-time, if not already authenticated
+npm publish --dry-run    # sanity check: confirm the file list looks right
+npm publish              # unscoped package — no --access flag needed
+```
+
+Only `dist/`, `README.md`, `package.json`, and `LICENSE` ship (npm always
+includes `LICENSE`/`README.md` regardless of the `files` allowlist in
+`package.json`). Source (`src/`, `test/`) and `scripts/` are not published.
 
 MIT. See the repo root `LICENSE`.

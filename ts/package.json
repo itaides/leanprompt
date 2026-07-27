@@ -30,6 +30,10 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./langchain": {
+            "types": "./dist/integrations/langchain.d.ts",
+            "import": "./dist/integrations/langchain.js"
         }
     },
     "files": [
@@ -42,7 +46,20 @@
         "test": "bun test",
         "clean": "rm -rf dist"
     },
+    "peerDependencies": {
+        "@langchain/anthropic": ">=0.3.0",
+        "@langchain/core": ">=0.3.0",
+        "@langchain/openai": ">=0.3.0"
+    },
+    "peerDependenciesMeta": {
+        "@langchain/anthropic": { "optional": true },
+        "@langchain/core": { "optional": true },
+        "@langchain/openai": { "optional": true }
+    },
     "devDependencies": {
+        "@langchain/anthropic": "^1.5.2",
+        "@langchain/core": "^1.2.3",
+        "@langchain/openai": "^1.5.5",
         "@types/node": "^22.0.0",
         "typescript": "^5.5.0"
     },

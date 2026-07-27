@@ -1,0 +1,41 @@
+{
+  "ratio": 0.5,
+  "reports": [
+    {
+      "corpus": "agent-heavy.json",
+      "proseMessages": 7,
+      "totalMessages": 11,
+      "inputTokens": 260,
+      "extract": {
+        "outputTokens": 248,
+        "ratio": 0.9538461538461539,
+        "termCoverage": 0.9487179487179487,
+        "digitCoverage": 1
+      },
+      "baseline": {
+        "outputTokens": 235,
+        "ratio": 0.9038461538461539,
+        "termCoverage": 0.905982905982906,
+        "digitCoverage": 1
+      }
+    },
+    {
+      "corpus": "prose-heavy.json",
+      "proseMessages": 7,
+      "totalMessages": 7,
+      "inputTokens": 1555,
+      "extract": {
+        "outputTokens": 958,
+        "ratio": 0.6160771704180065,
+        "termCoverage": 0.6955810147299509,
+        "digitCoverage": 0.7368421052631579
+      },
+      "baseline": {
+        "outputTokens": 963,
+        "ratio": 0.6192926045016077,
+        "termCoverage": 0.7135842880523732,
+        "digitCoverage": 0.7368421052631579
+      }
+    }
+  ]
+}

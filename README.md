@@ -154,6 +154,11 @@ model (Anthropic / OpenAI / Gemini) over raw HTTP instead of running the
 local algorithm. See [`CONFIG.md`](CONFIG.md#selfllm--llm-delegated-summarization)
 for its options and each package's README for the language-specific API.
 
+**LangChain.js**: `leanprompt/langchain` (TypeScript only) wires
+`leanpromptFetch` into `ChatOpenAI`/`ChatAnthropic` — see
+[`ts/README.md`](ts/README.md#langchainjs). Adds no dependency to the core
+`leanprompt` import.
+
 ## What savings to expect — honest math
 
 Only PROSE is compressed. Everything the classifier flags as code, error or
@@ -173,6 +178,13 @@ dedup/purge wins:
 | Rust | `cargo test` | `cargo clippy --all-targets -- -D warnings` | — (asserts against `parity/`) |
 | Go | `go test ./...` | `go vet ./...` && `gofmt -l .` | — (asserts against `parity/`) |
 
+## Benchmarks
+
+`bun bench/run-quality.ts` (Extract vs a naive baseline), `bun
+bench/run-cross-language.ts` (ts/rust/go agreement dashboard), `bun
+bench/run-workload.ts --file <messages.json>` (savings on your own
+conversation export). See [`bench/README.md`](bench/README.md).
+
 ## Repository layout
 
 ```
@@ -180,6 +192,7 @@ ts/         TypeScript SDK — reference implementation (bun test)
 rust/       Rust crate (cargo test)
 go/         Go module (go test ./...)
 parity/     golden vectors generated from ts/ (bun ts/scripts/gen-parity.ts)
+bench/      quality, cross-language and real-workload measurement tooling
 docs/       parity-spec.md — the normative cross-language spec
 CONFIG.md   every configuration option, all three languages
 ```

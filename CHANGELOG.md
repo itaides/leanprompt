@@ -6,7 +6,7 @@ All notable changes to this project are documented here. Format follows
 in lockstep (enforced by CI); Go has no manifest version and is released
 via its own `go/vX.Y.Z` git tag.
 
-## [Unreleased]
+## [0.1.1] — 2026-08-02
 
 ### Fixed
 - `leanpromptFetch` (TS) no longer touches the request/response body at

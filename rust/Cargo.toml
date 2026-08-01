@@ -1,6 +1,6 @@
 [package]
 name = "leanprompt"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "Zero-dependency prompt compression for LLM applications: deterministic extractive compressor, classifier-gated pipeline."

@@ -14,15 +14,30 @@
  *   - Character classes are the pinned functions below (isWordChar /
  *     isSpaceChar), NOT the host language's Unicode tables — those vary by
  *     Unicode version across runtimes.
- *   - A word run of N code points contributes max(1, ceil(N / 4)) tokens.
- *   - Every non-word, non-space code point contributes 1 token.
- *   - Total = max(1, wordTokens + symbolTokens) for non-empty text.
+ *   - A word run of N isWordChar code points that are NOT pinned dense-script
+ *     code points (see isDenseScriptChar) contributes max(1, ceil(N / 4))
+ *     tokens.
+ *   - A run of N pinned dense-script code points contributes
+ *     max(1, ceil(N * 2 / 3)) tokens. Dense scripts (CJK ideographs, Hangul,
+ *     Hiragana/Katakana, Thai, Lao, Khmer, Myanmar) are not space-delimited
+ *     and real BPE tokenizers run far denser than 4 chars/token on them
+ *     (commonly ~1.5-2.5 chars/token) — bucketing them through the
+ *     space-delimited-word divisor undercounts by 2-3x. This divisor is
+ *     itself only an estimate, isolated to this file: isWordChar/isSpaceChar
+ *     are unchanged and still used unmodified by the Extract compressor's
+ *     word-tokenization (see extract.ts) and elsewhere.
+ *   - Every other non-word, non-space code point contributes 1 token.
+ *   - Total = max(1, wordTokens + denseTokens + symbolTokens) for non-empty
+ *     text.
  */
 
 import { getTextContent } from "./content.js";
 import type { ChatMessage } from "./types.js";
 
 const CHARS_PER_TOKEN = 4;
+// ceil(N * DENSE_NUM / DENSE_DEN) approximates ~1.5 chars/token.
+const DENSE_NUM = 2;
+const DENSE_DEN = 3;
 
 /**
  * Pinned word-character rule (code point):
@@ -81,6 +96,28 @@ function isPunctChar(cp: number): boolean {
 }
 
 /**
+ * Pinned dense-script code point ranges: scripts with no space-delimited
+ * word boundaries, where real BPE tokenizers run far denser than the
+ * space-delimited-word 4-chars/token divisor. Used only by countTokens'
+ * per-run charge below — isWordChar/isSpaceChar classification is unchanged.
+ */
+function isDenseScriptChar(cp: number): boolean {
+    return (
+        (cp >= 0x0e00 && cp <= 0x0e7f) || // Thai
+        (cp >= 0x0e80 && cp <= 0x0eff) || // Lao
+        (cp >= 0x1000 && cp <= 0x109f) || // Myanmar
+        (cp >= 0x1100 && cp <= 0x11ff) || // Hangul Jamo
+        (cp >= 0x1780 && cp <= 0x17ff) || // Khmer
+        (cp >= 0x3040 && cp <= 0x309f) || // Hiragana
+        (cp >= 0x30a0 && cp <= 0x30ff) || // Katakana
+        (cp >= 0x3400 && cp <= 0x4dbf) || // CJK Unified Ideographs Extension A
+        (cp >= 0x4e00 && cp <= 0x9fff) || // CJK Unified Ideographs
+        (cp >= 0xac00 && cp <= 0xd7a3) || // Hangul Syllables
+        (cp >= 0xf900 && cp <= 0xfaff) // CJK Compatibility Ideographs
+    );
+}
+
+/**
  * Estimate the number of tokens in `text`.
  *
  * BPE splits long/rare words into multiple tokens, so a word run contributes
@@ -93,24 +130,44 @@ export function countTokens(text: string): number {
     }
 
     let tokens = 0;
-    let runLen = 0;
+    let wordRunLen = 0;
+    let denseRunLen = 0;
 
     for (const ch of text) {
         const cp = ch.codePointAt(0)!;
         if (isWordChar(cp)) {
-            runLen += 1;
+            if (isDenseScriptChar(cp)) {
+                if (wordRunLen > 0) {
+                    tokens += Math.max(1, Math.ceil(wordRunLen / CHARS_PER_TOKEN));
+                    wordRunLen = 0;
+                }
+                denseRunLen += 1;
+            } else {
+                if (denseRunLen > 0) {
+                    tokens += Math.max(1, Math.ceil((denseRunLen * DENSE_NUM) / DENSE_DEN));
+                    denseRunLen = 0;
+                }
+                wordRunLen += 1;
+            }
             continue;
         }
-        if (runLen > 0) {
-            tokens += Math.max(1, Math.ceil(runLen / CHARS_PER_TOKEN));
-            runLen = 0;
+        if (wordRunLen > 0) {
+            tokens += Math.max(1, Math.ceil(wordRunLen / CHARS_PER_TOKEN));
+            wordRunLen = 0;
+        }
+        if (denseRunLen > 0) {
+            tokens += Math.max(1, Math.ceil((denseRunLen * DENSE_NUM) / DENSE_DEN));
+            denseRunLen = 0;
         }
         if (!isSpaceChar(cp)) {
             tokens += 1;
         }
     }
-    if (runLen > 0) {
-        tokens += Math.max(1, Math.ceil(runLen / CHARS_PER_TOKEN));
+    if (wordRunLen > 0) {
+        tokens += Math.max(1, Math.ceil(wordRunLen / CHARS_PER_TOKEN));
+    }
+    if (denseRunLen > 0) {
+        tokens += Math.max(1, Math.ceil((denseRunLen * DENSE_NUM) / DENSE_DEN));
     }
 
     return Math.max(1, tokens);

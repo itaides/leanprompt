@@ -54,6 +54,10 @@ export function registerCompressor(name: string, factory: CompressorFactory): vo
 export class Middleware {
     readonly config: LeanpromptConfig;
     private readonly active: boolean;
+    /** True unless `config.mode` is off/passthrough/disabled. */
+    get isActive(): boolean {
+        return this.active;
+    }
     private readonly threshold: number;
     private readonly protectLastTurns: number;
     private readonly router: Router;

@@ -170,6 +170,17 @@ dedup/purge wins:
 - code/tool-heavy agent histories: substantially less — measure on your own
   traffic before quoting a number
 
+Token counts (the trigger threshold and every `leanprompt*` telemetry field)
+come from a zero-dependency heuristic estimator, not the provider's actual
+BPE tokenizer — see [`ts/src/tokens.ts`](ts/src/tokens.ts) for the full spec.
+It's tuned per-script: space-delimited text (English and other Latin-script
+languages) uses a 4-chars/token divisor, and CJK/Hangul/Thai/Lao/Khmer/Myanmar
+— scripts with no space-delimited word boundaries, where real tokenizers run
+far denser — use a separate ~1.5-chars/token divisor. Both are still
+estimates: expect the reported numbers to diverge from your provider's actual
+token accounting, more so for scripts and content this estimator wasn't
+tuned against.
+
 ## Commands / test reference
 
 | Language | Test | Lint / typecheck | Regenerate parity vectors |

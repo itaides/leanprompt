@@ -40,6 +40,14 @@ const client = new OpenAI({
 // usage.leanpromptTokensSaved / leanpromptRatio / leanpromptMethod
 ```
 
+`mode: "off"` (the default) is a true no-op: `leanpromptFetch` returns your
+original `fetch` unwrapped, with no body parsing or reconstruction at all.
+Wire the compressing fetch specifically into your LLM client's constructor,
+not as a process-wide global — `leanpromptFetch` matches any POST request
+whose path ends in `/chat/completions`, `/v1/messages`, or `/messages`, so a
+global override could also intercept an unrelated API your app calls that
+happens to share one of those path suffixes.
+
 Or wrap an existing client instance (duck-typed, works with both SDKs):
 
 ```ts

@@ -36,9 +36,25 @@ unchanged. No host `toLowerCase`.
 
 ## 3. Token estimator (`tokens`)
 
-State machine over code points:
-- A maximal run of isWordChar code points of length N contributes
-  `max(1, ceil(N / 4))` tokens.
+State machine over code points. Word runs and dense-script runs are tracked
+and charged separately — isWordChar/isSpaceChar (§2) are unchanged and used
+as-is elsewhere (e.g. Extract's word-tokenization, §8); the dense-script
+split below is local to the token estimator only:
+
+- **isDenseScriptChar(cp)** — true for code points in: U+0E00–U+0E7F (Thai),
+  U+0E80–U+0EFF (Lao), U+1000–U+109F (Myanmar), U+1100–U+11FF (Hangul Jamo),
+  U+1780–U+17FF (Khmer), U+3040–U+309F (Hiragana), U+30A0–U+30FF (Katakana),
+  U+3400–U+4DBF (CJK Ext A), U+4E00–U+9FFF (CJK Unified Ideographs),
+  U+AC00–U+D7A3 (Hangul Syllables), U+F900–U+FAFF (CJK Compatibility
+  Ideographs). These scripts have no space-delimited word boundaries; real
+  BPE tokenizers run far denser than 4 chars/token on them (commonly
+  ~1.5–2.5 chars/token), so bucketing them through the space-delimited-word
+  divisor undercounts by roughly 2-3x.
+- A maximal run of isWordChar code points of length N that are NOT
+  isDenseScriptChar contributes `max(1, ceil(N / 4))` tokens.
+- A maximal run of isDenseScriptChar code points of length N contributes
+  `max(1, ceil(N * 2 / 3))` tokens (integer arithmetic: `ceil(N*2/3)`, never
+  floating-point division, to stay bit-identical across languages).
 - Every other code point that is not isSpaceChar contributes 1 token.
 - Empty text → 0. Otherwise the total is `max(1, sum)`.
 

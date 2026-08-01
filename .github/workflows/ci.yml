@@ -7,6 +7,20 @@ on:
     branches: [main]
 
 jobs:
+  version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ts and rust versions must match
+        run: |
+          TS_VERSION=$(jq -r .version ts/package.json)
+          RUST_VERSION=$(grep -m1 '^version = ' rust/Cargo.toml | sed -E 's/version = "([^"]+)"/\1/')
+          echo "ts=$TS_VERSION rust=$RUST_VERSION"
+          if [ "$TS_VERSION" != "$RUST_VERSION" ]; then
+            echo "::error::ts/package.json version ($TS_VERSION) and rust/Cargo.toml version ($RUST_VERSION) differ — both claim byte-identical behavior and must ship the same version number. Go has no manifest version field; keep its release tag (go/vX.Y.Z) in step manually."
+            exit 1
+          fi
+
   ts:
     runs-on: ubuntu-latest
     defaults:

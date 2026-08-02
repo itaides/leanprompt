@@ -202,18 +202,21 @@ conversation export). See [`bench/README.md`](bench/README.md).
 ts/         TypeScript SDK — reference implementation (bun test)
 rust/       Rust crate (cargo test)
 go/         Go module (go test ./...)
+mcp-proxy/  MCP server wrapper compressing tool/task/sampling payloads (Claude Desktop and any MCP client)
 parity/     golden vectors generated from ts/ (bun ts/scripts/gen-parity.ts)
 bench/      quality, cross-language and real-workload measurement tooling
 docs/       parity-spec.md — the normative cross-language spec
 CONFIG.md   every configuration option, all three languages
-ROADMAP.md  planned support for Claude Desktop and OpenAI Codex CLI
+ROADMAP.md  planned support for OpenAI Codex CLI
 CHANGELOG.md notable changes per release
 ```
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) — planned support for Claude Desktop (via an
-MCP-server wiring path) and OpenAI Codex CLI.
+Claude Desktop support shipped as [`mcp-proxy/`](mcp-proxy/README.md) — an
+MCP server wrapper that compresses oversized tool results, task payloads, and
+sampling requests for any MCP client, verified end-to-end in Claude Desktop.
+See [ROADMAP.md](ROADMAP.md) for what's still planned (OpenAI Codex CLI).
 
 ## Changelog
 

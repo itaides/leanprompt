@@ -2,6 +2,8 @@
 node_modules/
 ts/dist/
 ts/package-lock.json
+mcp-proxy/dist/
+mcp-proxy/package-lock.json
 
 # IDE
 .vscode/

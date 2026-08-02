@@ -1,0 +1,41 @@
+{
+    "name": "leanprompt-mcp-proxy",
+    "version": "0.1.0",
+    "description": "MCP proxy that compresses oversized tool results and sampling requests with leanprompt before they reach the model.",
+    "author": "itaides",
+    "license": "MIT",
+    "homepage": "https://github.com/itaides/leanprompt",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/itaides/leanprompt.git",
+        "directory": "mcp-proxy"
+    },
+    "type": "module",
+    "main": "./dist/proxy.js",
+    "types": "./dist/proxy.d.ts",
+    "bin": {
+        "leanprompt-mcp-proxy": "./dist/cli.js"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "typecheck": "tsc --noEmit",
+        "test": "bun test",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "leanprompt": "file:../ts",
+        "@modelcontextprotocol/sdk": "^1.30.0",
+        "zod": "^4.4.3"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "^5.5.0"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}

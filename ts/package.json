@@ -1,6 +1,6 @@
 {
     "name": "leanprompt",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "Zero-dependency prompt compression for LLM applications: deterministic extractive compressor, classifier-gated pipeline, fetch middleware and minimal clients.",
     "keywords": [
         "llm",

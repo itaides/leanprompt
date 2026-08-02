@@ -6,6 +6,22 @@ All notable changes to this project are documented here. Format follows
 in lockstep (enforced by CI); Go has no manifest version and is released
 via its own `go/vX.Y.Z` git tag.
 
+## [0.2.0] — 2026-08-02
+
+### Added
+- [`mcp-proxy/`](mcp-proxy/README.md) — an MCP server wrapper compressing
+  oversized `tools/call` results, deferred `tasks/result` payloads (2025-11-25
+  spec's experimental durable tasks), and outbound `sampling/createMessage`
+  requests, for Claude Desktop or any MCP client. `structuredContent`,
+  `tools/list`, and everything else pass through untouched. Verified
+  end-to-end against the real `@modelcontextprotocol/server-filesystem` in
+  Claude Desktop, comparing a wrapped vs. unwrapped connector on the same
+  file (25 repeated paragraphs → deduplicated to 1, all facts preserved).
+
+### Changed
+- [`ROADMAP.md`](ROADMAP.md) and the main README's Roadmap section: Claude
+  Desktop support marked shipped (via `mcp-proxy`) instead of planned.
+
 ## [0.1.1] — 2026-08-02
 
 ### Fixed

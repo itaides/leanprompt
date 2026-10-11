@@ -10,3 +10,10 @@ repository = "https://github.com/itaides/leanprompt"
 # implemented in-crate against docs/parity-spec.md. Provider HTTP transport
 # is a trait the caller implements (bring-your-own HTTP client).
 [dependencies]
+serde_json = { version = "1", optional = true }
+
+# `serde` is off by default: it only adds interop conversions between
+# serde_json::Value and the in-crate json::Value for callers that already
+# depend on serde_json. The default build stays dependency-free.
+[features]
+serde = ["dep:serde_json"]

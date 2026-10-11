@@ -44,6 +44,11 @@ flags behave identically in both modes.
   `normalize` / `normalize_json` (Rust), `NormalizeDisabled` /
   `NormalizeJSONDisabled` (Go). New golden vector file
   `parity/normalize.json`.
+- Optional Rust `serde` cargo feature (`leanprompt = { features = ["serde"] }`):
+  `serde_conv` bidirectional conversions between `serde_json::Value` and the
+  in-crate `json::Value`, plus `messages_from_json`/`messages_to_json`
+  helpers. Off by default — the dependency-free build is unchanged and the
+  in-crate JSON implementation still does all parsing in the pipeline.
 
 ### Changed
 - Extract marker matching now requires a word-start boundary (`do not` no

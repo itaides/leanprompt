@@ -76,6 +76,14 @@ The size drop is mostly leanprompt's redundancy filter collapsing the 25 near-id
 - **No compression telemetry surfaces in Claude Desktop's UI.** `_meta["io.leanprompt/compression-stats"]` is attached to results, but MCP has no standard place for a client to display it — you won't see savings reported anywhere in the app itself.
 - **Only helps with large tool outputs, task payloads, and sampling requests**, not the system prompt or the model's own accumulating conversation history — the biggest cost in a long session is untouched by this proxy.
 - **`tasks/list` and `tasks/cancel` aren't proxied** — only the two methods that can carry a large payload (`tasks/get` for status, `tasks/result` for the deferred result) are handled.
+- **Only `tools/*` and `tasks/*` requests and `sampling/createMessage` are proxied.** Upstream `resources`, `prompts`, `logging` and notifications such as `tools/list_changed` are not forwarded yet.
+
+## Publishing
+
+`dependencies.leanprompt` is a `file:../ts` link for local development, which
+npm refuses to publish. Before `npm publish`, switch it to the released
+version range (e.g. `"leanprompt": "^0.2.0"`), then switch back to `file:`
+after publishing. `prepack` fails early if a `file:` link is still in place.
 
 ## Test
 

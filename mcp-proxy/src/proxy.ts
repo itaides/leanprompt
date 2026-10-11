@@ -35,6 +35,7 @@ import { Middleware } from "leanprompt";
 
 import { compressSamplingMessages, compressToolResult, EXT_ID } from "./compress.js";
 import type { SamplingMessageLike, ToolResultLike } from "./compress.js";
+import { VERSION } from "./version.js";
 
 export interface ProxyConfig {
     /** Command to spawn the real MCP server this proxy wraps. */
@@ -67,14 +68,14 @@ export async function runProxy(cfg: ProxyConfig): Promise<void> {
     // `sampling` here is what tells that server it's allowed to ask us for
     // completions at all.
     const upstream = new Client(
-        { name: "leanprompt-mcp-proxy", version: "0.1.0" },
+        { name: "leanprompt-mcp-proxy", version: VERSION },
         { capabilities: { sampling: {} } },
     );
     await upstream.connect(new StdioClientTransport({ command: cfg.command, args: cfg.args }));
 
     // We are the server from Claude Desktop's point of view.
     const downstream = new Server(
-        { name: "leanprompt-mcp-proxy", version: "0.1.0" },
+        { name: "leanprompt-mcp-proxy", version: VERSION },
         {
             capabilities: {
                 tools: {},

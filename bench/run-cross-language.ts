@@ -114,7 +114,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 mkdirSync(RESULTS_DIR, { recursive: true });
 
-const files = readdirSync(CORPORA_DIR).filter((f) => f.endsWith(".json"));
+const files = readdirSync(CORPORA_DIR).filter((f) => f.endsWith(".json")).sort();
 const lines: string[] = [
     "# Cross-language consistency dashboard",
     "",

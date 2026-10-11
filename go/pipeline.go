@@ -156,8 +156,11 @@ type Config struct {
 	// Routing: content-type name → compressor name ("verbatim" | "extract").
 	Routing            map[string]string
 	ExtractRatioMillis int64
-	ProtectLastTurns   int
-	DedupDisabled      bool
+	// ProtectLastTurns: 0 means default (2); to protect nothing set
+	// ProtectLastTurnsDisabled instead.
+	ProtectLastTurns         int
+	ProtectLastTurnsDisabled bool
+	DedupDisabled            bool
 	// PurgeErrorsAfterTurns < 0 disables purge; 0 means default (4).
 	PurgeErrorsAfterTurns int
 }
@@ -183,6 +186,13 @@ func NewMiddleware(config Config) *Middleware {
 	ratio := config.ExtractRatioMillis
 	if ratio == 0 {
 		ratio = defaultRatioMillis
+	}
+	protectLastTurns := config.ProtectLastTurns
+	if protectLastTurns == 0 {
+		protectLastTurns = defaultProtectLastTurns
+	}
+	if config.ProtectLastTurnsDisabled {
+		protectLastTurns = 0
 	}
 
 	router := NewRouter()
@@ -224,7 +234,7 @@ func NewMiddleware(config Config) *Middleware {
 	return &Middleware{
 		active:           active,
 		threshold:        threshold,
-		protectLastTurns: config.ProtectLastTurns,
+		protectLastTurns: protectLastTurns,
 		router:           router,
 		strategies:       strategies,
 	}

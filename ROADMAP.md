@@ -14,6 +14,9 @@ SDKs and LangChain.js — no core changes, only new documented wiring paths:
   requests — while leaving `structuredContent`, `tools/list`, and everything
   else untouched. Verified end-to-end against the real
   `@modelcontextprotocol/server-filesystem` in Claude Desktop.
+  Next: forward the remaining request types -- upstream `resources`,
+  `prompts`, `logging`, and notifications such as `tools/list_changed` are
+  not proxied yet.
 - **OpenAI Codex CLI** — investigate whether Codex CLI's request path
   (proxy / base-URL configuration) exposes a hook `leanpromptFetch` can sit
   behind, the same way `ChatOpenAI`/`ChatAnthropic`'s `configuration.fetch`

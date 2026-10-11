@@ -518,6 +518,8 @@ interface ScoredSentence {
     anaphoric: boolean;
     /** Lowercased tokens that contain an ASCII digit (redundancy guard). */
     digitTokens: string[];
+    /** Cached 3-word shingle set of the sentence's words. */
+    shingleSet: Set<string>;
 }
 
 /**
@@ -560,6 +562,7 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
             ),
             anaphoric: words.length > 0 && ANAPHORIC_OPENERS.has(words[0]!),
             digitTokens: words.filter((w) => hasAsciiDigit(w)),
+            shingleSet: shingles(words),
         };
     });
 
@@ -571,15 +574,20 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
     );
 
     const keptByIndex = new Map<number, ScoredSentence>();
+    const keptList: ScoredSentence[] = [];
     let keptTokens = 0;
     const underBudget = () => keptTokens * 1000 < ratioMillis * totalTokens;
+    const keep = (s: ScoredSentence) => {
+        keptByIndex.set(s.index, s);
+        keptList.push(s);
+        keptTokens += s.tokens;
+    };
 
     // Prohibitions are kept unconditionally, charged to the budget up front.
     for (const s of scored) {
         const lower = asciiLower(s.text);
         if (PROHIBITION_MARKERS.some((m) => lower.includes(m))) {
-            keptByIndex.set(s.index, s);
-            keptTokens += s.tokens;
+            keep(s);
         }
     }
 
@@ -590,19 +598,16 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
         if (keptByIndex.has(cand.index)) {
             continue; // already pulled in by an anaphoric successor
         }
-        if (isRedundant(cand, [...keptByIndex.values()])) {
+        if (isRedundant(cand, keptList)) {
             continue;
         }
-        keptByIndex.set(cand.index, cand);
-        keptTokens += cand.tokens;
+        keep(cand);
 
         // Anaphora rule: a kept sentence that opens with a connective marker
         // leans on its predecessor — pull the predecessor in (charged to the
         // budget) so the survivor still has its antecedent.
         if (cand.anaphoric && cand.index > 0 && !keptByIndex.has(cand.index - 1)) {
-            const prev = scored[cand.index - 1]!;
-            keptByIndex.set(prev.index, prev);
-            keptTokens += prev.tokens;
+            keep(scored[cand.index - 1]!);
         }
     }
 
@@ -775,12 +780,12 @@ function isRedundant(cand: ScoredSentence, kept: ScoredSentence[]): boolean {
         // redundant.
         return false;
     }
-    const candShingles = shingles(wordTokens(cand.text));
+    const candShingles = cand.shingleSet;
     if (candShingles.size === 0) {
         return false;
     }
     for (const k of kept) {
-        const ks = shingles(wordTokens(k.text));
+        const ks = k.shingleSet;
         let intersection = 0;
         for (const s of candShingles) {
             if (ks.has(s)) {

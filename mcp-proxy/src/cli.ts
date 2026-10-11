@@ -3,60 +3,27 @@
  * Usage:
  *   leanprompt-mcp-proxy [--threshold N] [--keep-ratio R] [--no-expand]
  *       [--expand-cache N] -- <command> [args...]
+ *   leanprompt-mcp-proxy [...same flags] --url <http(s)://endpoint> [--header "Name: value"]...
  *
- * Everything after `--` is the real MCP server this proxy spawns and wraps.
+ * With `--`, everything after the separator is the real MCP server this proxy
+ * spawns and wraps over stdio. With `--url`, the proxy fronts a remote
+ * Streamable HTTP MCP endpoint instead; `--header` adds HTTP headers (e.g.
+ * Authorization) to every upstream request.
  */
 
+import { parseArgs, USAGE } from "./args.js";
 import { runProxy } from "./proxy.js";
 
-function parseArgs(argv: string[]): {
-    thresholdTokens: number;
-    keepRatio: number;
-    expandEnabled: boolean;
-    expandCache: number | undefined;
-    command: string;
-    args: string[];
-} {
-    const sep = argv.indexOf("--");
-    if (sep === -1 || sep === argv.length - 1) {
-        console.error(
-            "Usage: leanprompt-mcp-proxy [--threshold N] [--keep-ratio R] [--no-expand] [--expand-cache N] -- <command> [args...]",
-        );
-        process.exit(1);
-    }
-
-    const flags = argv.slice(0, sep);
-    const [command, ...args] = argv.slice(sep + 1);
-
-    let thresholdTokens = 2000;
-    let keepRatio = 0.5;
-    let expandEnabled = true;
-    let expandCache: number | undefined;
-    for (let i = 0; i < flags.length; i++) {
-        if (flags[i] === "--threshold") {
-            thresholdTokens = Number(flags[++i]);
-        } else if (flags[i] === "--keep-ratio") {
-            keepRatio = Number(flags[++i]);
-        } else if (flags[i] === "--no-expand") {
-            expandEnabled = false;
-        } else if (flags[i] === "--expand-cache") {
-            expandCache = Number(flags[++i]);
-        }
-    }
-
-    return { thresholdTokens, keepRatio, expandEnabled, expandCache, command: command!, args };
+let config;
+try {
+    config = parseArgs(process.argv.slice(2));
+} catch (err) {
+    console.error(err instanceof Error ? err.message : String(err));
+    console.error(USAGE);
+    process.exit(1);
 }
 
-const { thresholdTokens, keepRatio, expandEnabled, expandCache, command, args } =
-    parseArgs(process.argv.slice(2));
-
-runProxy({
-    command,
-    args,
-    thresholdTokens,
-    keepRatio,
-    expand: { enabled: expandEnabled, maxEntries: expandCache },
-}).catch((err) => {
+runProxy(config).catch((err) => {
     console.error("leanprompt-mcp-proxy failed:", err);
     process.exit(1);
 });

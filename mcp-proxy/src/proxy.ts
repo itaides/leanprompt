@@ -34,6 +34,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -86,10 +87,26 @@ import { ExpandStore } from "./expand-store.js";
 import type { ExpandStoreOptions } from "./expand-store.js";
 import { VERSION } from "./version.js";
 
-export interface ProxyConfig {
-    /** Command to spawn the real MCP server this proxy wraps. */
+/** Upstream reached by spawning a stdio child command (`-- <command>`). */
+export interface StdioUpstream {
+    type: "stdio";
     command: string;
     args: string[];
+}
+
+/** Upstream reached over Streamable HTTP (`--url`). */
+export interface HttpUpstream {
+    type: "http";
+    url: URL;
+    /** Extra headers sent on every upstream HTTP request (e.g. Authorization). */
+    headers?: Record<string, string>;
+}
+
+export type UpstreamConfig = StdioUpstream | HttpUpstream;
+
+export interface ProxyConfig {
+    /** The real MCP server this proxy wraps: a spawned stdio command or a remote endpoint. */
+    upstream: UpstreamConfig;
     /** Below this many (leanprompt-estimated) tokens, content passes through untouched. */
     thresholdTokens: number;
     /** Extract keep-ratio for prose that clears the threshold. */
@@ -403,10 +420,19 @@ export async function createProxy(opts: CreateProxyOptions): Promise<ProxyHandle
 }
 
 export async function runProxy(cfg: ProxyConfig): Promise<void> {
+    // requestInit.headers is merged into every upstream HTTP request — POSTs
+    // and the standalone GET SSE stream alike — by the client transport.
+    const upstreamTransport =
+        cfg.upstream.type === "http"
+            ? new StreamableHTTPClientTransport(cfg.upstream.url, {
+                  requestInit: { headers: cfg.upstream.headers },
+              })
+            : new StdioClientTransport({ command: cfg.upstream.command, args: cfg.upstream.args });
     await createProxy({
-        upstreamTransport: new StdioClientTransport({ command: cfg.command, args: cfg.args }),
+        upstreamTransport,
         downstreamTransport: new StdioServerTransport(),
         thresholdTokens: cfg.thresholdTokens,
         keepRatio: cfg.keepRatio,
+        expand: cfg.expand,
     });
 }

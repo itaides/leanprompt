@@ -6,6 +6,7 @@ resources, prompts) passes through untouched.
 
 ```
 Claude Desktop ──stdio──▶ leanprompt-mcp-proxy ──stdio──▶ real MCP server
+                                             └── or ──HTTP──▶ remote MCP endpoint
 ```
 
 ## What it compresses, and what it doesn't
@@ -57,6 +58,27 @@ node dist/cli.js --threshold 2000 --keep-ratio 0.5 -- npx -y @modelcontextprotoc
 ```
 
 Everything after `--` is the real MCP server command being wrapped.
+
+## Remote upstreams
+
+Instead of spawning a local server, the proxy can front a remote MCP endpoint
+that speaks Streamable HTTP — e.g. a gateway that hosts MCP servers behind an
+HTTP URL:
+
+```bash
+node dist/cli.js --url https://mcp-gateway.example.com/servers/all \
+    --header "Authorization: Bearer $TOKEN"
+```
+
+```
+agent ──stdio──▶ leanprompt-mcp-proxy ──HTTP──▶ remote MCP endpoint
+```
+
+- `--url` must be an `http://` or `https://` URL and is mutually exclusive
+  with `-- <command>` — exactly one upstream is required.
+- `--header "Name: value"` is repeatable and is sent on every upstream HTTP
+  request (authentication, gateway routing headers, …). It requires `--url`.
+- `--threshold` and `--keep-ratio` behave exactly as in stdio mode.
 
 ## Use it in Claude Desktop
 

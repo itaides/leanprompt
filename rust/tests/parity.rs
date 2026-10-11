@@ -5,7 +5,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-use leanprompt::compressors::extract::{segment_sentences, select_sentences, word_tokens, Sentence};
+use leanprompt::compressors::extract::{
+    segment_sentences, select_sentences, word_tokens, Sentence,
+};
 use leanprompt::json::{parse, Value};
 use leanprompt::middleware::{Config, Middleware};
 use leanprompt::strategies::{DedupStrategy, PurgeErrorsStrategy, Strategy};
@@ -17,8 +19,8 @@ fn load(name: &str) -> Value {
         .join("..")
         .join("parity")
         .join(name);
-    let text = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+    let text =
+        fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
     parse(&text).unwrap_or_else(|e| panic!("cannot parse {}: {e}", path.display()))
 }
 
@@ -181,7 +183,11 @@ fn middleware_vectors() {
     let (output, stats) = Middleware::new(config).compress_messages(input);
 
     let expected_output = data.get("output").and_then(Value::as_arr).unwrap();
-    assert_eq!(output.as_slice(), expected_output, "middleware output messages");
+    assert_eq!(
+        output.as_slice(),
+        expected_output,
+        "middleware output messages"
+    );
     assert_eq!(
         stats.input_tokens,
         data.get("inputTokens").and_then(Value::as_i64).unwrap(),

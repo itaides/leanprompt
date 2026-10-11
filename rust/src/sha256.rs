@@ -15,8 +15,8 @@ const K: [u32; 64] = [
 /// SHA-256 digest of `data`, hex-encoded lowercase.
 pub fn hex_digest(data: &[u8]) -> String {
     let mut h: [u32; 8] = [
-        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+        0x5be0cd19,
     ];
 
     // Padding: 0x80, zeros, 64-bit big-endian bit length.
@@ -29,10 +29,13 @@ pub fn hex_digest(data: &[u8]) -> String {
     msg.extend_from_slice(&bit_len.to_be_bytes());
 
     let mut w = [0u32; 64];
-    for chunk in msg.chunks_exact(64) {
+    for chunk in msg.as_chunks::<64>().0 {
         for (i, word) in w.iter_mut().take(16).enumerate() {
             *word = u32::from_be_bytes([
-                chunk[i * 4], chunk[i * 4 + 1], chunk[i * 4 + 2], chunk[i * 4 + 3],
+                chunk[i * 4],
+                chunk[i * 4 + 1],
+                chunk[i * 4 + 2],
+                chunk[i * 4 + 3],
             ]);
         }
         for i in 16..64 {

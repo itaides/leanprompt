@@ -33,6 +33,12 @@ pub fn is_word_char(cp: u32) -> bool {
 /// ASCII-only lowercasing: `A-Z` → `a-z`, everything else unchanged.
 pub fn ascii_lower(text: &str) -> String {
     text.chars()
-        .map(|c| if c.is_ascii_uppercase() { c.to_ascii_lowercase() } else { c })
+        .map(|c| {
+            if c.is_ascii_uppercase() {
+                c.to_ascii_lowercase()
+            } else {
+                c
+            }
+        })
         .collect()
 }

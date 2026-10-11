@@ -6,11 +6,20 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   version-sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: ts and rust versions must match
         run: |
           TS_VERSION=$(jq -r .version ts/package.json)
@@ -20,6 +29,15 @@ jobs:
             echo "::error::ts/package.json version ($TS_VERSION) and rust/Cargo.toml version ($RUST_VERSION) differ — both claim byte-identical behavior and must ship the same version number. Go has no manifest version field; keep its release tag (go/vX.Y.Z) in step manually."
             exit 1
           fi
+      - name: ts source VERSION constant must match package.json
+        run: |
+          TS_VERSION=$(jq -r .version ts/package.json)
+          SRC_VERSION=$(grep -m1 'export const VERSION' ts/src/index.ts | sed -E 's/.*VERSION = "([^"]+)".*/\1/')
+          echo "package.json=$TS_VERSION ts/src/index.ts=$SRC_VERSION"
+          if [ "$TS_VERSION" != "$SRC_VERSION" ]; then
+            echo "::error::ts/src/index.ts VERSION ($SRC_VERSION) differs from ts/package.json version ($TS_VERSION). mcp-proxy is versioned independently and is not checked here."
+            exit 1
+          fi
 
   ts:
     runs-on: ubuntu-latest
@@ -27,14 +45,18 @@ jobs:
       run:
         working-directory: ts
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: Install
         run: bun install
       - name: Type check
         run: bun x tsc --noEmit
       - name: Test
         run: bun test
+      - name: Build
+        run: bun run build
       - name: Parity vectors are current
         run: |
           bun scripts/gen-parity.ts
@@ -46,10 +68,14 @@ jobs:
       run:
         working-directory: rust
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          components: clippy
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          components: clippy, rustfmt
+      - name: Format
+        run: cargo fmt --check
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
       - name: Test (includes golden-vector parity)
@@ -61,8 +87,10 @@ jobs:
       run:
         working-directory: go
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.22"
       - name: Format
@@ -71,3 +99,31 @@ jobs:
         run: go vet ./...
       - name: Test (includes golden-vector parity)
         run: go test ./...
+
+  mcp-proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Build ts (mcp-proxy depends on it via a file link)
+        working-directory: ts
+        run: |
+          bun install
+          bun run build
+      - name: Install
+        working-directory: mcp-proxy
+        run: npm install
+      - name: Type check
+        working-directory: mcp-proxy
+        run: npm run typecheck
+      - name: Test
+        working-directory: mcp-proxy
+        run: npm test
+      - name: Build
+        working-directory: mcp-proxy
+        run: npm run build

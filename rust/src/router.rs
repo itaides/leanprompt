@@ -13,7 +13,10 @@ pub struct Router {
 
 impl Default for Router {
     fn default() -> Self {
-        Router { routes: HashMap::new(), default: Box::new(Verbatim) }
+        Router {
+            routes: HashMap::new(),
+            default: Box::new(Verbatim),
+        }
     }
 }
 

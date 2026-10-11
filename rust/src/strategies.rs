@@ -20,7 +20,10 @@ impl Strategy for DedupStrategy {
 
     fn apply(&self, messages: Vec<Value>) -> Vec<Value> {
         let mut tracker = RepeatTracker::new();
-        messages.into_iter().filter(|m| !tracker.is_repeat(m)).collect()
+        messages
+            .into_iter()
+            .filter(|m| !tracker.is_repeat(m))
+            .collect()
     }
 }
 

@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # The ts/, rust/, and go/ runtime dependency sets must remain empty (see
+  # CONTRIBUTING.md -> "The zero-dependency invariant"), so these entries can
+  # only ever propose dev/peer dependency bumps.
+  - package-ecosystem: "npm"
+    directory: "/ts"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/mcp-proxy"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      dependencies:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "cargo"
+    directory: "/rust"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "gomod"
+    directory: "/go"
+    schedule:
+      interval: "weekly"

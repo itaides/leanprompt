@@ -59,9 +59,21 @@ const ERROR_MARKERS: &[&str] = &[
 ];
 
 const CODE_LINE_PREFIXES: &[&str] = &[
-    "def ", "class ", "function ", "async function ", "import ", "from ",
-    "export ", "package ", "#include", "fn ", "pub fn ", "func ", "var ",
-    "const ", "let ",
+    "def ",
+    "class ",
+    "function ",
+    "async function ",
+    "import ",
+    "from ",
+    "export ",
+    "package ",
+    "#include",
+    "fn ",
+    "pub fn ",
+    "func ",
+    "var ",
+    "const ",
+    "let ",
 ];
 
 const MIN_CODE_LINES: usize = 2;
@@ -205,7 +217,7 @@ pub fn has_tool_linkage(message: &Value) -> bool {
     let Some(items) = message.get("content").and_then(Value::as_arr) else {
         return false;
     };
-    items.iter().any(|b| {
-        matches!(b.str_field("type"), "tool_use" | "tool_result")
-    })
+    items
+        .iter()
+        .any(|b| matches!(b.str_field("type"), "tool_use" | "tool_result"))
 }

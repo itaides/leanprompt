@@ -61,7 +61,9 @@ impl Middleware {
         let mut router = Router::new();
         for (ctype_str, compressor_name) in &config.routing {
             let Some(ctype) = ContentType::parse(ctype_str) else {
-                eprintln!("leanprompt: unknown content type {ctype_str:?} in routing config; ignored");
+                eprintln!(
+                    "leanprompt: unknown content type {ctype_str:?} in routing config; ignored"
+                );
                 continue;
             };
             let compressor: Box<dyn Compressor> = match compressor_name.as_str() {
@@ -101,7 +103,11 @@ impl Middleware {
 
     pub fn compress_messages(&self, messages: &[Value]) -> (Vec<Value>, CompressionStats) {
         if !self.active || messages.is_empty() {
-            let method = if messages.is_empty() { "empty" } else { "passthrough" };
+            let method = if messages.is_empty() {
+                "empty"
+            } else {
+                "passthrough"
+            };
             return (messages.to_vec(), CompressionStats::with_method(method));
         }
 

@@ -42,7 +42,10 @@ fn main() -> ExitCode {
         }
     };
 
-    let mut config = Config { mode: "off".into(), ..Config::default() };
+    let mut config = Config {
+        mode: "off".into(),
+        ..Config::default()
+    };
     let mut i = 2;
     while i < args.len() {
         match args[i].as_str() {
@@ -79,7 +82,10 @@ fn main() -> ExitCode {
 
     let output = Value::Obj(vec![
         ("inputTokens".into(), Value::Num(stats.input_tokens as f64)),
-        ("outputTokens".into(), Value::Num(stats.output_tokens as f64)),
+        (
+            "outputTokens".into(),
+            Value::Num(stats.output_tokens as f64),
+        ),
         ("method".into(), Value::Str(stats.method)),
         ("messages".into(), Value::Arr(compressed)),
     ]);

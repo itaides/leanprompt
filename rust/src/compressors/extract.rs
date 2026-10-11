@@ -30,9 +30,8 @@ const MIN_ASCII_PCT: usize = 60;
 const STRUCTURAL_MARKERS: &[&str] = &["```", "Traceback (most recent call last)"];
 
 const ABBREVIATIONS: &[&str] = &[
-    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st",
-    "vs", "etc", "e.g", "i.e", "cf", "al", "approx",
-    "no", "fig", "eq", "sec", "min", "max", "avg",
+    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc", "e.g", "i.e", "cf", "al",
+    "approx", "no", "fig", "eq", "sec", "min", "max", "avg",
 ];
 
 const FILLER_OPENERS: &[&str] = &[
@@ -57,29 +56,47 @@ const FILLER_OPENERS: &[&str] = &[
 const PROHIBITION_MARKERS: &[&str] = &["do not", "don't", "must not", "never "];
 
 const CONSTRAINT_MARKERS: &[&str] = &[
-    "must ", "always", "only ", "except", "required", "important",
-    "warning", "note:", "make sure", "be careful",
+    "must ",
+    "always",
+    "only ",
+    "except",
+    "required",
+    "important",
+    "warning",
+    "note:",
+    "make sure",
+    "be careful",
 ];
 
 const ANAPHORIC_OPENERS: &[&str] = &[
-    "this", "that", "these", "those", "it", "they",
-    "however", "therefore", "thus", "so", "consequently",
-    "instead", "otherwise", "also", "additionally", "hence",
+    "this",
+    "that",
+    "these",
+    "those",
+    "it",
+    "they",
+    "however",
+    "therefore",
+    "thus",
+    "so",
+    "consequently",
+    "instead",
+    "otherwise",
+    "also",
+    "additionally",
+    "hence",
 ];
 
 const STOPWORDS: &[&str] = &[
-    "a", "an", "the", "and", "or", "but", "if", "then", "else", "when",
-    "at", "by", "for", "with", "about", "against", "between", "into",
-    "through", "during", "before", "after", "above", "below", "to", "from",
-    "up", "down", "in", "out", "on", "off", "over", "under", "again",
-    "further", "once", "here", "there", "all", "any", "both", "each",
-    "few", "more", "most", "other", "some", "such", "only", "own", "same",
-    "so", "than", "too", "very", "can", "will", "just", "should", "now",
-    "is", "are", "was", "were", "be", "been", "being", "have", "has",
-    "had", "having", "do", "does", "did", "doing", "would", "could",
-    "ought", "i", "you", "he", "she", "it", "we", "they", "them", "his",
-    "her", "its", "our", "their", "this", "that", "these", "those", "am",
-    "of", "as", "not", "no", "nor", "what", "which", "who", "whom",
+    "a", "an", "the", "and", "or", "but", "if", "then", "else", "when", "at", "by", "for", "with",
+    "about", "against", "between", "into", "through", "during", "before", "after", "above",
+    "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again",
+    "further", "once", "here", "there", "all", "any", "both", "each", "few", "more", "most",
+    "other", "some", "such", "only", "own", "same", "so", "than", "too", "very", "can", "will",
+    "just", "should", "now", "is", "are", "was", "were", "be", "been", "being", "have", "has",
+    "had", "having", "do", "does", "did", "doing", "would", "could", "ought", "i", "you", "he",
+    "she", "it", "we", "they", "them", "his", "her", "its", "our", "their", "this", "that",
+    "these", "those", "am", "of", "as", "not", "no", "nor", "what", "which", "who", "whom",
 ];
 
 fn is_stopword(w: &str) -> bool {
@@ -97,7 +114,9 @@ pub struct Extract {
 
 impl Default for Extract {
     fn default() -> Self {
-        Extract { ratio_millis: DEFAULT_RATIO_MILLIS }
+        Extract {
+            ratio_millis: DEFAULT_RATIO_MILLIS,
+        }
     }
 }
 
@@ -117,7 +136,11 @@ impl Extract {
                     return (msg.clone(), 0, 0);
                 }
                 let (compressed, input, output) = self.compress_text(s);
-                (msg.with_field("content", Value::Str(compressed)), input, output)
+                (
+                    msg.with_field("content", Value::Str(compressed)),
+                    input,
+                    output,
+                )
             }
             Some(Value::Arr(blocks)) => {
                 let mut new_blocks = Vec::with_capacity(blocks.len());
@@ -129,7 +152,11 @@ impl Extract {
                     total_in += i;
                     total_out += o;
                 }
-                (msg.with_field("content", Value::Arr(new_blocks)), total_in, total_out)
+                (
+                    msg.with_field("content", Value::Arr(new_blocks)),
+                    total_in,
+                    total_out,
+                )
             }
             _ => (msg.clone(), 0, 0),
         }
@@ -171,7 +198,11 @@ impl Extract {
                         total_in += i;
                         total_out += o;
                     }
-                    (block.with_field("content", Value::Arr(new_items)), total_in, total_out)
+                    (
+                        block.with_field("content", Value::Arr(new_items)),
+                        total_in,
+                        total_out,
+                    )
                 }
                 _ => (block.clone(), 0, 0),
             },
@@ -182,7 +213,11 @@ impl Extract {
                     ("content".to_string(), Value::Arr(vec![block.clone()])),
                 ]);
                 let text = get_text_content(&wrapper);
-                let tokens = if text.is_empty() { 0 } else { count_tokens(&text) };
+                let tokens = if text.is_empty() {
+                    0
+                } else {
+                    count_tokens(&text)
+                };
                 (block.clone(), tokens, tokens)
             }
         }
@@ -190,10 +225,7 @@ impl Extract {
 
     fn compress_text(&self, text: &str) -> (String, i64, i64) {
         let in_tok = count_tokens(text);
-        if looks_structural(text)
-            || in_tok < MIN_SPAN_TOKENS
-            || !mostly_ascii(text)
-        {
+        if looks_structural(text) || in_tok < MIN_SPAN_TOKENS || !mostly_ascii(text) {
             return (text.to_string(), in_tok, in_tok);
         }
         let sentences = segment_sentences(text);
@@ -216,7 +248,9 @@ impl Compressor for Extract {
 
     fn compress(&self, messages: &[Value]) -> (Vec<Value>, CompressionStats) {
         if messages.is_empty()
-            || !messages.iter().any(|m| !get_text_content(m).trim().is_empty())
+            || !messages
+                .iter()
+                .any(|m| !get_text_content(m).trim().is_empty())
         {
             return (messages.to_vec(), CompressionStats::with_method("extract"));
         }
@@ -229,7 +263,10 @@ impl Compressor for Extract {
             total_in += i;
             total_out += o;
         }
-        (out, CompressionStats::counted("extract", total_in, total_out))
+        (
+            out,
+            CompressionStats::counted("extract", total_in, total_out),
+        )
     }
 }
 
@@ -268,12 +305,18 @@ pub fn segment_sentences(text: &str) -> Vec<Sentence> {
             continue;
         }
         if is_list_line(line) {
-            out.push(Sentence { text: line.to_string(), list_item: true });
+            out.push(Sentence {
+                text: line.to_string(),
+                list_item: true,
+            });
             continue;
         }
         let chars: Vec<char> = line.chars().collect();
         if chars.len() <= MIN_SENTENCE_CHARS {
-            out.push(Sentence { text: line.to_string(), list_item: false });
+            out.push(Sentence {
+                text: line.to_string(),
+                list_item: false,
+            });
             continue;
         }
         let mut start = 0usize;
@@ -306,7 +349,10 @@ pub fn segment_sentences(text: &str) -> Vec<Sentence> {
             let piece: String = chars[start..=i].iter().collect();
             let piece = piece.trim().to_string();
             if !piece.is_empty() {
-                out.push(Sentence { text: piece, list_item: false });
+                out.push(Sentence {
+                    text: piece,
+                    list_item: false,
+                });
             }
             start = i + 1;
             i += 1;
@@ -314,7 +360,10 @@ pub fn segment_sentences(text: &str) -> Vec<Sentence> {
         let rest: String = chars[start..].iter().collect();
         let rest = rest.trim().to_string();
         if !rest.is_empty() {
-            out.push(Sentence { text: rest, list_item: false });
+            out.push(Sentence {
+                text: rest,
+                list_item: false,
+            });
         }
     }
     out
@@ -401,10 +450,7 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
 
     let mut term_counts: HashMap<String, i64> = HashMap::new();
     let mut total_terms: i64 = 0;
-    let tokenized: Vec<Vec<String>> = sentences
-        .iter()
-        .map(|s| word_tokens(&s.text))
-        .collect();
+    let tokenized: Vec<Vec<String>> = sentences.iter().map(|s| word_tokens(&s.text)).collect();
     for words in &tokenized {
         for w in words {
             if is_stopword(w) {
@@ -426,7 +472,12 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
                 list_item: s.list_item,
                 tokens: count_tokens(&s.text),
                 score: score_sentence(
-                    &s.text, words, index, sentences.len(), &term_counts, total_terms,
+                    &s.text,
+                    words,
+                    index,
+                    sentences.len(),
+                    &term_counts,
+                    total_terms,
                 ),
                 anaphoric: words
                     .first()
@@ -445,7 +496,10 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
     // Rank by (score desc, index asc) — stable sort with explicit tiebreak.
     let mut ranked: Vec<usize> = (0..scored.len()).collect();
     ranked.sort_by(|&a, &b| {
-        scored[b].score.cmp(&scored[a].score).then(scored[a].index.cmp(&scored[b].index))
+        scored[b]
+            .score
+            .cmp(&scored[a].score)
+            .then(scored[a].index.cmp(&scored[b].index))
     });
 
     let mut kept: Vec<bool> = vec![false; scored.len()];
@@ -580,7 +634,9 @@ fn has_non_initial_capitalized_word(text: &str) -> bool {
 fn has_quoted_span(text: &str) -> bool {
     let chars: Vec<char> = text.chars().collect();
     for q in ['"', '\'', '`'] {
-        let Some(first) = chars.iter().position(|&c| c == q) else { continue };
+        let Some(first) = chars.iter().position(|&c| c == q) else {
+            continue;
+        };
         if let Some(offset) = chars[first + 1..].iter().position(|&c| c == q) {
             // second = first + 1 + offset; gap = second - first
             if offset + 1 > 3 {

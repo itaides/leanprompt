@@ -1,0 +1,55 @@
+name: Behavior Change Proposal
+description: Propose a change to the compression algorithm or pipeline (the parity invariant)
+labels: ["behavior-change"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Behavior changes alter the byte-identical output all three SDKs produce. They require maintainer acknowledgment before a PR -- see CONTRIBUTING.md -> "The parity invariant".
+
+  - type: dropdown
+    id: spec_part
+    attributes:
+      label: Which part of the spec
+      options:
+        - Classifier
+        - Tokens
+        - Content extraction
+        - Strategies
+        - Extract
+        - Middleware pipeline
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior and why it is wrong or insufficient
+      description: Describe what the spec/implementations do today and the concrete problem it causes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_change
+    attributes:
+      label: Proposed spec change
+      description: The new behavior, stated precisely enough to port to all three languages.
+    validations:
+      required: true
+
+  - type: textarea
+    id: parity_impact
+    attributes:
+      label: Parity impact
+      description: Which vectors in `parity/*.json` change? What new golden cases are needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why you rejected them.
+    validations:
+      required: false

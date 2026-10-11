@@ -88,5 +88,8 @@ fn dense_tokens(len: usize) -> i64 {
 
 /// Sum token counts over the compressible text of each message.
 pub fn count_message_tokens(messages: &[Value]) -> i64 {
-    messages.iter().map(|m| count_tokens(&get_text_content(m))).sum()
+    messages
+        .iter()
+        .map(|m| count_tokens(&get_text_content(m)))
+        .sum()
 }

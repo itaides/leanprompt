@@ -177,9 +177,17 @@ It's tuned per-script: space-delimited text (English and other Latin-script
 languages) uses a 4-chars/token divisor, and CJK/Hangul/Thai/Lao/Khmer/Myanmar
 — scripts with no space-delimited word boundaries, where real tokenizers run
 far denser — use a separate ~1.5-chars/token divisor. Both are still
-estimates: expect the reported numbers to diverge from your provider's actual
-token accounting, more so for scripts and content this estimator wasn't
-tuned against.
+estimates. Measured against real tokenizers
+(`bun bench/run-tokenizer-calibration.ts`, results in
+[`bench/results/tokenizer-calibration.md`](bench/results/tokenizer-calibration.md)):
+on the bundled English corpora the estimator **overcounts by about 1.5x**
+versus OpenAI `o200k_base`/`cl100k_base` (every punctuation character is
+charged a full token and words are charged `ceil(len/4)`), is within ~10%
+on CJK and Cyrillic under `o200k_base`, and undercounts dense log lines by
+~25%. Practically: a `thresholdTokens` of 2000 triggers at roughly 1300
+real English tokens, and `leanpromptTokensSaved` overstates English savings
+by a similar factor. Use the ratio, not the absolute count, when comparing
+against your provider's bill.
 
 ## Commands / test reference
 

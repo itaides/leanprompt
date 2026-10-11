@@ -6,7 +6,11 @@ All notable changes to this project are documented here. Format follows
 in lockstep (enforced by CI); Go has no manifest version and is released
 via its own `go/vX.Y.Z` git tag.
 
-## [Unreleased]
+## [0.4.0] — 2026-10-11
+
+Feature release. The SDKs gain a default-on lossless `normalize` strategy (output changes on content it touches — CRLF, ANSI, invisible characters, JSON whitespace — while remaining byte-identical across the three ports) and an opt-in `tokenCounter` hook; Rust adds an off-by-default `serde`
+interop feature. `mcp-proxy` ships transparency, reversible `expand`, and remote upstreams together as its next release (0.1.1 → 0.4.0, skipping the intermediate labels used below while unreleased).
+
 
 **mcp-proxy** — new remote upstream mode: `leanprompt-mcp-proxy --url
 <http(s)://endpoint>` fronts a Streamable HTTP MCP server (e.g. a hosted
@@ -58,7 +62,7 @@ flags behave identically in both modes.
   apostrophes inside words (`don't`, `it's`) no longer score as quoted
   phrases.
 
-**mcp-proxy 0.2.0** — the proxy is now transparent in both directions: the
+**mcp-proxy** — the proxy is now transparent in both directions: the
 downstream server advertises whatever capabilities the upstream server
 reports (plus `tasks` and the `io.leanprompt/compression-stats`
 experimental flag) and mirrors its `instructions`. `resources/*`,
@@ -71,7 +75,7 @@ AbortSignals so `notifications/cancelled` reaches upstream with the correct
 request id. `tools/call`, `tasks/get`, `tasks/result`, and
 `sampling/createMessage` are compressed/handled exactly as before.
 
-**mcp-proxy 0.3.0** — lossless by reference: every result the proxy
+**mcp-proxy** — lossless by reference: every result the proxy
 actually compresses now keeps its original `content` in a bounded
 per-process store (256 entries / 64 MiB, LRU) and appends a `[leanprompt]`
 note telling the model it was compressed, from how many tokens to how

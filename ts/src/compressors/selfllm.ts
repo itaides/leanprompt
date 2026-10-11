@@ -17,6 +17,7 @@
 import { getTextContent } from "../content.js";
 import { makeStats } from "../stats.js";
 import { countTokens } from "../tokens.js";
+import type { TokenCounter } from "../tokens.js";
 import type { ChatMessage } from "../types.js";
 import type { Compressor, CompressResult } from "./base.js";
 import { looksStructural, MIN_SPAN_TOKENS } from "./extract.js";
@@ -93,6 +94,11 @@ export interface SelfLLMOptions {
      * unchanged (method "selfllm-fallback"). "throw": reject as before.
      */
     onError?: "fallback" | "throw";
+    /**
+     * Token counter for span guards and stats. Defaults to the built-in
+     * estimator. Must be pure and deterministic.
+     */
+    tokenCounter?: TokenCounter;
 }
 
 /** Compressor that delegates to an LLM for summarization over raw HTTP. */
@@ -107,6 +113,7 @@ export class SelfLLM implements Compressor {
     private readonly fetchImpl: typeof fetch;
     private readonly timeoutMs: number;
     private readonly onError: "fallback" | "throw";
+    private readonly count: TokenCounter;
 
     constructor(options: SelfLLMOptions = {}) {
         const provider = options.provider ?? "anthropic";
@@ -125,6 +132,7 @@ export class SelfLLM implements Compressor {
         this.fetchImpl = options.fetchImpl ?? fetch;
         this.timeoutMs = options.timeoutMs ?? 15000;
         this.onError = options.onError ?? "fallback";
+        this.count = options.tokenCounter ?? countTokens;
     }
 
     compress(_messages: ChatMessage[]): CompressResult {
@@ -163,7 +171,7 @@ export class SelfLLM implements Compressor {
                     }`,
                 );
                 out.push(msg);
-                const tokens = countTokens(getTextContent(msg));
+                const tokens = this.count(getTextContent(msg));
                 totalIn += tokens;
                 totalOut += tokens;
                 fellBack = true;
@@ -245,7 +253,7 @@ export class SelfLLM implements Compressor {
                 // Structural content (code fences, tracebacks) must survive
                 // verbatim — a debugger or coding agent needs exact tokens.
                 if (looksStructural(inner)) {
-                    const tokens = countTokens(inner);
+                    const tokens = this.count(inner);
                     return [block, tokens, tokens];
                 }
                 const [compressed, inTok, outTok] = await this.summarizeText(inner);
@@ -270,7 +278,7 @@ export class SelfLLM implements Compressor {
         // Pass-through block types (tool_use, image, thinking, document,
         // unknown). Count tokens so the reported ratio stays honest.
         const text = getTextContent({ role: "", content: [block] });
-        const tokens = text ? countTokens(text) : 0;
+        const tokens = text ? this.count(text) : 0;
         return [block, tokens, tokens];
     }
 
@@ -280,13 +288,13 @@ export class SelfLLM implements Compressor {
      * strictly shorter than the input by estimator tokens.
      */
     private async summarizeText(text: string): Promise<[string, number, number]> {
-        const inTok = countTokens(text);
+        const inTok = this.count(text);
         if (looksStructural(text) || inTok < MIN_SPAN_TOKENS) {
             return [text, inTok, inTok];
         }
         const completion = await this.call(this.userPrompt(text));
         const summary = completion.text.trim();
-        const outTok = countTokens(summary);
+        const outTok = this.count(summary);
         if (!summary || outTok >= inTok) {
             return [text, inTok, inTok];
         }

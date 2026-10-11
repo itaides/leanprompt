@@ -8,7 +8,7 @@ use crate::compressors::Compressor;
 use crate::content::get_text_content;
 use crate::json::Value;
 use crate::stats::CompressionStats;
-use crate::tokens::count_tokens;
+use crate::tokens::{default_counter, TokenCounter};
 
 const DEFAULT_RATIO_MILLIS: i64 = 500;
 const SCALE: i64 = 1000;
@@ -110,12 +110,14 @@ fn is_stopword(w: &str) -> bool {
 pub struct Extract {
     /// Keep-ratio in integer thousandths (500 = keep half).
     pub ratio_millis: i64,
+    counter: TokenCounter,
 }
 
 impl Default for Extract {
     fn default() -> Self {
         Extract {
             ratio_millis: DEFAULT_RATIO_MILLIS,
+            counter: default_counter(),
         }
     }
 }
@@ -126,7 +128,21 @@ impl Extract {
             ratio_millis > 0 && ratio_millis <= 1000,
             "Extract ratio_millis must be in (0, 1000], got {ratio_millis}"
         );
-        Extract { ratio_millis }
+        Extract {
+            ratio_millis,
+            counter: default_counter(),
+        }
+    }
+
+    /// Use `counter` for span guards, the keep-budget and stats instead of
+    /// the built-in estimator. Must be pure and deterministic.
+    pub fn with_token_counter(mut self, counter: TokenCounter) -> Self {
+        self.counter = counter;
+        self
+    }
+
+    fn count(&self, text: &str) -> i64 {
+        (self.counter)(text)
     }
 
     fn compress_message(&self, msg: &Value) -> (Value, i64, i64) {
@@ -182,7 +198,7 @@ impl Extract {
                     }
                     // Structural output must reach the model verbatim.
                     if looks_structural(inner) {
-                        let tokens = count_tokens(inner);
+                        let tokens = self.count(inner);
                         return (block.clone(), tokens, tokens);
                     }
                     let (compressed, i, o) = self.compress_text(inner);
@@ -216,7 +232,7 @@ impl Extract {
                 let tokens = if text.is_empty() {
                     0
                 } else {
-                    count_tokens(&text)
+                    self.count(&text)
                 };
                 (block.clone(), tokens, tokens)
             }
@@ -224,7 +240,7 @@ impl Extract {
     }
 
     fn compress_text(&self, text: &str) -> (String, i64, i64) {
-        let in_tok = count_tokens(text);
+        let in_tok = self.count(text);
         if looks_structural(text) || in_tok < MIN_SPAN_TOKENS || !mostly_ascii(text) {
             return (text.to_string(), in_tok, in_tok);
         }
@@ -232,8 +248,8 @@ impl Extract {
         if sentences.len() < MIN_SENTENCES_TO_COMPRESS {
             return (text.to_string(), in_tok, in_tok);
         }
-        let compressed = select_sentences(&sentences, self.ratio_millis);
-        let out_tok = count_tokens(&compressed);
+        let compressed = select_sentences_with(&sentences, self.ratio_millis, &self.counter);
+        let out_tok = self.count(&compressed);
         if out_tok >= in_tok {
             return (text.to_string(), in_tok, in_tok);
         }
@@ -472,6 +488,14 @@ struct Scored {
 /// (parity-spec §8). Output re-joins kept sentences in original order with
 /// the source line structure.
 pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
+    select_sentences_with(sentences, ratio_millis, &default_counter())
+}
+
+fn select_sentences_with(
+    sentences: &[Sentence],
+    ratio_millis: i64,
+    count: &TokenCounter,
+) -> String {
     use std::collections::HashMap;
 
     let mut term_counts: HashMap<String, i64> = HashMap::new();
@@ -496,7 +520,7 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
                 index,
                 text: s.text.clone(),
                 list_item: s.list_item,
-                tokens: count_tokens(&s.text),
+                tokens: count(&s.text),
                 score: score_sentence(
                     &s.text,
                     words,

@@ -29,6 +29,7 @@ fn selfllm(body: &str) -> SelfLlm<Fake> {
             ratio_millis: 300,
             max_summary_tokens: 500,
             base_url: None,
+            token_counter: None,
         },
         Fake { body: body.into() },
     )
@@ -149,6 +150,7 @@ fn transport_error_is_returned() {
             ratio_millis: 300,
             max_summary_tokens: 500,
             base_url: None,
+            token_counter: None,
         },
         Failing,
     );

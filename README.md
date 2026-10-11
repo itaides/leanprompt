@@ -191,7 +191,10 @@ on CJK and Cyrillic under `o200k_base`, and undercounts dense log lines by
 ~25%. Practically: a `thresholdTokens` of 2000 triggers at roughly 1300
 real English tokens, and `leanpromptTokensSaved` overstates English savings
 by a similar factor. Use the ratio, not the absolute count, when comparing
-against your provider's bill.
+against your provider's bill — or inject a real tokenizer via
+[`tokenCounter`](CONFIG.md#tokencounter-ts--token_counter-rust--tokencounter-go)
+(TS) / `token_counter` (Rust) / `TokenCounter` (Go), which replaces the
+estimator for gating and stats with a function you supply.
 
 ## Interaction with provider prompt caching
 

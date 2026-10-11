@@ -52,6 +52,7 @@
 import { getTextContent } from "../content.js";
 import { makeStats } from "../stats.js";
 import { countTokens, isWordChar } from "../tokens.js";
+import type { TokenCounter } from "../tokens.js";
 import type { ChatMessage } from "../types.js";
 import type { Compressor, CompressResult } from "./base.js";
 
@@ -173,6 +174,11 @@ const STOPWORDS = new Set([
 export interface ExtractOptions {
     /** Fraction of tokens to keep (0..1]. Lower = more aggressive. */
     ratio?: number;
+    /**
+     * Token counter for span guards, the keep-budget, and stats. Defaults
+     * to the built-in estimator. Must be pure and deterministic.
+     */
+    tokenCounter?: TokenCounter;
 }
 
 /** Block-aware, weights-free extractive compressor. */
@@ -181,6 +187,7 @@ export class Extract implements Compressor {
     readonly ratio: number;
     /** ratio in integer thousandths — the value the spec operates on. */
     readonly ratioMillis: number;
+    private readonly count: TokenCounter;
 
     constructor(options: ExtractOptions = {}) {
         const r = options.ratio ?? DEFAULT_RATIO;
@@ -189,6 +196,7 @@ export class Extract implements Compressor {
         }
         this.ratio = r;
         this.ratioMillis = Math.round(r * 1000);
+        this.count = options.tokenCounter ?? countTokens;
     }
 
     compress(messages: ChatMessage[]): CompressResult {
@@ -281,7 +289,7 @@ export class Extract implements Compressor {
                 // Structural content (code fences, tracebacks) must survive
                 // verbatim — a debugger or coding agent needs exact tokens.
                 if (looksStructural(inner)) {
-                    const tokens = countTokens(inner);
+                    const tokens = this.count(inner);
                     return [block, tokens, tokens];
                 }
                 const [compressed, inTok, outTok] = this.compressText(inner);
@@ -305,7 +313,7 @@ export class Extract implements Compressor {
         // Pass-through block types (tool_use, image, thinking, document,
         // unknown). Count tokens so the reported ratio stays honest.
         const text = getTextContent({ role: "", content: [block] });
-        const tokens = text ? countTokens(text) : 0;
+        const tokens = text ? this.count(text) : 0;
         return [block, tokens, tokens];
     }
 
@@ -315,7 +323,7 @@ export class Extract implements Compressor {
 
     /** Returns [compressedText, inputTokens, outputTokens]. */
     private compressText(text: string): [string, number, number] {
-        const inTok = countTokens(text);
+        const inTok = this.count(text);
 
         // Never touch structural text even if a caller routes it here.
         if (looksStructural(text)) {
@@ -335,8 +343,8 @@ export class Extract implements Compressor {
             return [text, inTok, inTok];
         }
 
-        const compressed = selectSentences(sentences, this.ratioMillis);
-        const outTok = countTokens(compressed);
+        const compressed = selectSentences(sentences, this.ratioMillis, this.count);
+        const outTok = this.count(compressed);
 
         // Guard: if selection failed to save anything meaningful, return the
         // original (never emit a mangled equal-size result).
@@ -548,7 +556,11 @@ interface ScoredSentence {
  * anaphora keep-with-previous rule, and reassemble survivors in original
  * order.
  */
-export function selectSentences(sentences: Sentence[], ratioMillis: number): string {
+export function selectSentences(
+    sentences: Sentence[],
+    ratioMillis: number,
+    count: TokenCounter = countTokens,
+): string {
     // --- term statistics over the whole span --- //
     const termCounts = new Map<string, number>();
     let totalTerms = 0;
@@ -571,7 +583,7 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
             index,
             text: s.text,
             listItem: s.listItem,
-            tokens: countTokens(s.text),
+            tokens: count(s.text),
             score: scoreSentence(
                 s.text,
                 words,

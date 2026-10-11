@@ -174,3 +174,79 @@ func TestNormalizeWalk(t *testing.T) {
 		t.Fatalf("tool_use.input modified: %v", toolUse["input"])
 	}
 }
+func TestTokenCounter(t *testing.T) {
+	text := "some prose message long enough to matter for the gate"
+	input := []Message{{"role": "user", "content": text}}
+
+	// Stub counter: char length. One call per text span — once for the
+	// threshold gate, once inside the verbatim compressor for stats.
+	calls := 0
+	counter := func(s string) int64 {
+		calls++
+		return int64(len(s))
+	}
+	mw := NewMiddleware(Config{
+		Mode:                     "on",
+		ThresholdTokens:          10,
+		Routing:                  map[string]string{"prose": "verbatim"},
+		ProtectLastTurnsDisabled: true,
+		TokenCounter:             counter,
+	})
+	out, stats := mw.CompressMessages(input)
+	if calls != 2 {
+		t.Fatalf("counter invoked %d times, want 2 (gate + stats)", calls)
+	}
+	if stats.Method != "verbatim" {
+		t.Fatalf("unexpected method %s", stats.Method)
+	}
+	if stats.InputTokens != int64(len(text)) || stats.OutputTokens != int64(len(text)) {
+		t.Fatalf("stats should report stub counts: %+v", stats)
+	}
+	if out[0]["content"] != text {
+		t.Fatal("verbatim output should be untouched")
+	}
+}
+
+func TestTokenCounterThresholdBoundary(t *testing.T) {
+	// Estimator counts ~len/4 (< len); the stub counts len exactly, so the
+	// same threshold lands on opposite sides of the gate.
+	text := proseMsg("boundary")["content"].(string)
+	input := []Message{{"role": "user", "content": text}}
+	threshold := int64(len(text))
+
+	baseline := NewMiddleware(Config{
+		Mode:                     "on",
+		ThresholdTokens:          threshold,
+		Routing:                  map[string]string{"prose": "verbatim"},
+		ProtectLastTurnsDisabled: true,
+	})
+	_, stats := baseline.CompressMessages(input)
+	if stats.Method != "below-threshold" {
+		t.Fatalf("baseline method %s, want below-threshold", stats.Method)
+	}
+
+	hooked := NewMiddleware(Config{
+		Mode:                     "on",
+		ThresholdTokens:          threshold,
+		Routing:                  map[string]string{"prose": "verbatim"},
+		ProtectLastTurnsDisabled: true,
+		TokenCounter:             func(s string) int64 { return int64(len(s)) },
+	})
+	_, stats = hooked.CompressMessages(input)
+	if stats.Method != "verbatim" || stats.InputTokens != int64(len(text)) {
+		t.Fatalf("hooked run should clear the gate with stub counts: %+v", stats)
+	}
+}
+
+func TestTokenCounterUnsetKeepsEstimator(t *testing.T) {
+	mw := NewMiddleware(Config{
+		Mode:                     "on",
+		ThresholdTokens:          10,
+		Routing:                  map[string]string{"prose": "verbatim"},
+		ProtectLastTurnsDisabled: true,
+	})
+	_, stats := mw.CompressMessages([]Message{{"role": "user", "content": "hello world"}})
+	if stats.InputTokens != CountTokens("hello world") {
+		t.Fatalf("default path must use the estimator: %+v", stats)
+	}
+}

@@ -10,16 +10,27 @@
  */
 
 import { makeStats } from "../stats.js";
-import { countMessageTokens } from "../tokens.js";
+import { countMessageTokens, countTokens } from "../tokens.js";
+import type { TokenCounter } from "../tokens.js";
 import type { ChatMessage } from "../types.js";
 import type { Compressor, CompressResult } from "./base.js";
+
+export interface VerbatimOptions {
+    /** Token counter for stats. Defaults to the built-in estimator. */
+    tokenCounter?: TokenCounter;
+}
 
 /** A pass-through Compressor that preserves messages exactly. */
 export class Verbatim implements Compressor {
     readonly name = "verbatim";
+    private readonly count: TokenCounter;
+
+    constructor(options: VerbatimOptions = {}) {
+        this.count = options.tokenCounter ?? countTokens;
+    }
 
     compress(messages: ChatMessage[]): CompressResult {
-        const tokens = countMessageTokens(messages);
+        const tokens = countMessageTokens(messages, this.count);
         return [
             messages,
             makeStats({

@@ -11,7 +11,9 @@ import { SelfLLM } from "./compressors/selfllm.js";
 
 // Make `routing: { prose: "selfllm" }` work out of the box. Registered here
 // (not in middleware.ts) so the core pipeline stays free of network code.
-registerCompressor("selfllm", (cfg) => new SelfLLM(cfg.selfllm ?? {}));
+registerCompressor("selfllm", (cfg) =>
+    new SelfLLM({ tokenCounter: cfg.tokenCounter, ...cfg.selfllm }),
+);
 
 export { Anthropic } from "./anthropic.js";
 export type { LeanpromptClientOptions, AnthropicMessageParams } from "./anthropic.js";
@@ -43,11 +45,13 @@ export type { Strategy } from "./strategies.js";
 
 export type { Compressor, CompressResult } from "./compressors/base.js";
 export { Verbatim } from "./compressors/verbatim.js";
+export type { VerbatimOptions } from "./compressors/verbatim.js";
 export { Extract } from "./compressors/extract.js";
 export type { ExtractOptions } from "./compressors/extract.js";
 
 export { getTextContent, extractText, canonicalJson } from "./content.js";
 export { countTokens, countMessageTokens } from "./tokens.js";
+export type { TokenCounter } from "./tokens.js";
 
 export { attachTelemetry } from "./telemetry.js";
 

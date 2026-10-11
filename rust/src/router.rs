@@ -15,7 +15,7 @@ impl Default for Router {
     fn default() -> Self {
         Router {
             routes: HashMap::new(),
-            default: Box::new(Verbatim),
+            default: Box::<Verbatim>::default(),
         }
     }
 }
@@ -23,6 +23,14 @@ impl Default for Router {
 impl Router {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Router whose fallback compressor is `default` instead of Verbatim.
+    pub fn with_default(default: Box<dyn Compressor>) -> Self {
+        Router {
+            routes: HashMap::new(),
+            default,
+        }
     }
 
     pub fn register(&mut self, content_type: ContentType, compressor: Box<dyn Compressor>) {

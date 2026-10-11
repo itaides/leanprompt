@@ -174,14 +174,25 @@ export function countTokens(text: string): number {
 }
 
 /**
+ * A token counter: raw text in, token count out. `countTokens` is the
+ * built-in default; `LeanpromptConfig.tokenCounter` injects a different
+ * one (e.g. a real BPE tokenizer) so thresholds and stats speak its units.
+ */
+export type TokenCounter = (text: string) => number;
+
+/**
  * Sum token counts across a list of chat messages. Includes only the
  * compressible text of each message (role tokens and per-message framing
- * overhead are excluded, matching the reference design).
+ * overhead are excluded, matching the reference design). `count` defaults
+ * to the built-in estimator.
  */
-export function countMessageTokens(messages: ChatMessage[]): number {
+export function countMessageTokens(
+    messages: ChatMessage[],
+    count: TokenCounter = countTokens,
+): number {
     let total = 0;
     for (const msg of messages) {
-        total += countTokens(getTextContent(msg));
+        total += count(getTextContent(msg));
     }
     return total;
 }

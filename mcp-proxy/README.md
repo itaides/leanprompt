@@ -130,7 +130,7 @@ The size drop is mostly leanprompt's redundancy filter collapsing the 25 near-id
 
 `dependencies.leanprompt` is a `file:../ts` link for local development, which
 npm refuses to publish. Before `npm publish`, switch it to the released
-version range (e.g. `"leanprompt": "^0.3.0"`), then switch back to `file:`
+version range (e.g. `"leanprompt": "^0.4.0"`), then switch back to `file:`
 after publishing. `prepack` fails early if a `file:` link is still in place.
 
 ## Test

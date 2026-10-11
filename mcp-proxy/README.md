@@ -76,7 +76,8 @@ The size drop is mostly leanprompt's redundancy filter collapsing the 25 near-id
 - **No compression telemetry surfaces in Claude Desktop's UI.** `_meta["io.leanprompt/compression-stats"]` is attached to results, but MCP has no standard place for a client to display it — you won't see savings reported anywhere in the app itself.
 - **Only helps with large tool outputs, task payloads, and sampling requests**, not the system prompt or the model's own accumulating conversation history — the biggest cost in a long session is untouched by this proxy.
 - **`tasks/list` and `tasks/cancel` aren't proxied** — only the two methods that can carry a large payload (`tasks/get` for status, `tasks/result` for the deferred result) are handled.
-- **Only `tools/*` and `tasks/*` requests and `sampling/createMessage` are proxied.** Upstream `resources`, `prompts`, `logging` and notifications such as `tools/list_changed` are not forwarded yet.
+- **Everything else is forwarded verbatim, not compressed.** The downstream capabilities mirror whatever the upstream advertises: `resources/*`, `prompts/*`, `logging/setLevel`, `completion/complete`, `ping`, `roots/list`, and notifications (`list_changed`, `resources/updated`, `notifications/message`, `progress`, `roots/list_changed`) all pass through untouched. Resource contents in particular can be large and are not compressed yet.
+- **Only protocol surface the SDK's schemas know is forwarded.** A custom request or notification method outside the standard set is still not relayed.
 
 ## Publishing
 

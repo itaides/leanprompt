@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format follows
 in lockstep (enforced by CI); Go has no manifest version and is released
 via its own `go/vX.Y.Z` git tag.
 
+## [Unreleased]
+
+**mcp-proxy 0.2.0** — the proxy is now transparent in both directions: the
+downstream server advertises whatever capabilities the upstream server
+reports (plus `tasks` and the `io.leanprompt/compression-stats`
+experimental flag) and mirrors its `instructions`. `resources/*`,
+`prompts/*`, `logging/setLevel`, `completion/complete`, `ping`, and
+`roots/list` forward verbatim; upstream notifications (`tools`/`resources`/
+`prompts` `list_changed`, `resources/updated`, `notifications/message`,
+`notifications/progress`) reach the client, and the client's
+`roots/list_changed` reaches upstream. Request cancellation propagates via
+AbortSignals so `notifications/cancelled` reaches upstream with the correct
+request id. `tools/call`, `tasks/get`, `tasks/result`, and
+`sampling/createMessage` are compressed/handled exactly as before.
+
 ## [0.3.0] — 2026-10-11
 
 This is a behavior-changing minor release: the middleware pipeline order,

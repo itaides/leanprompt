@@ -1,6 +1,6 @@
 {
     "name": "leanprompt-mcp-proxy",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "MCP proxy that compresses oversized tool results and sampling requests with leanprompt before they reach the model.",
     "author": "itaides",
     "license": "MIT",

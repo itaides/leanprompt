@@ -53,6 +53,14 @@ via its own `go/vX.Y.Z` git tag.
   before tests) and `prepack` refuses to pack while `dependencies.leanprompt`
   is a `file:` link. Transitive dev/runtime advisories resolved via
   `npm audit fix`.
+- Extract preserves line structure: selected sentences are emitted in
+  original order separated by a space when they shared a source line, a
+  blank line (`\n\n`) across paragraph breaks, and a single newline
+  otherwise. Markdown lists, tables, and paragraph boundaries survive
+  compression instead of being flattened onto one line.
+- `RepeatTracker` keys on the exact `role|text` string instead of a
+  SHA-256 digest; the TypeScript core no longer imports any Node builtins,
+  so it runs in browsers and edge runtimes.
 
 ### Added
 - `selfllm.timeoutMs` (TS): aborts the provider request after N ms.

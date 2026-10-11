@@ -3,8 +3,6 @@ package leanprompt
 // Content-type classifier + RepeatTracker (parity-spec §6).
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"strings"
 )
 
@@ -166,7 +164,7 @@ func NewRepeatTracker() *RepeatTracker {
 // IsRepeat reports whether this message's content was seen before, and
 // records it as seen.
 func (t *RepeatTracker) IsRepeat(message Message) bool {
-	h, ok := repeatHash(message)
+	h, ok := repeatKey(message)
 	if !ok {
 		return false
 	}
@@ -181,9 +179,9 @@ func (t *RepeatTracker) Reset() {
 	t.seen = make(map[string]struct{})
 }
 
-func repeatHash(message Message) (string, bool) {
+func repeatKey(message Message) (string, bool) {
 	// tool_use/tool_result blocks pair by id; dropping a "duplicate"
-	// tool_result would orphan its tool_use. Never hash those messages.
+	// tool_result would orphan its tool_use. Never record those messages.
 	if hasToolLinkage(message) {
 		return "", false
 	}
@@ -195,8 +193,7 @@ func repeatHash(message Message) (string, bool) {
 		return "", false
 	}
 	role := strField(message, "role")
-	sum := sha256.Sum256([]byte(role + "|" + text))
-	return hex.EncodeToString(sum[:]), true
+	return role + "|" + text, true
 }
 
 // hasToolLinkage reports whether a message participates in a tool-call

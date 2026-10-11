@@ -60,6 +60,38 @@ const LISTY_TEXT = [
     "The rollback procedure is documented in runbooks/gamma-rollback.md for emergencies.",
 ].join("\n");
 
+const RELEASE_CHECKLIST =
+    "Release checklist for version 3.2 of the deployment service:\n" +
+    Array.from(
+        { length: 12 },
+        (_, i) =>
+            `- Step ${i + 1}: verify component ${
+                [
+                    "auth", "billing", "search", "cache", "queue", "mailer",
+                    "cdn", "db", "api", "ui", "docs", "infra",
+                ][i]
+            } passes its smoke test on staging cluster ${i % 3}`,
+    ).join("\n") +
+    "\n\n| service | owner | sla |\n| auth | alice | 99.9 |\n| billing | bob | 99.95 |\n\n" +
+    "Do not deploy on Fridays. Always page the on-call engineer before a rollback.";
+
+const MULTI_PARAGRAPH = [
+    "The migration started on Monday and finished ahead of schedule.",
+    "Every shard was copied twice and verified with checksums.",
+    "",
+    "During the second phase the read traffic was shifted gradually to the new cluster.",
+    "Latency stayed within the expected bounds for the entire window.",
+    "",
+    "The final cutover required a brief write pause of under two minutes.",
+    "Monitoring dashboards confirmed no elevated error rates afterwards.",
+].join("\n");
+
+const INCIDENT_SUMMARY = [
+    "The cache layer began evicting entries aggressively after the memory limit was lowered.",
+    "Requests then fell back to the database and saturated its connection pool.",
+    "Restoring the previous limit brought hit rates back to normal within an hour.",
+].join(" ");
+
 const CODE_TEXT = "import os\nfrom sys import path\n\ndef main():\n    return path";
 const FENCED_TEXT = "Here is the fix:\n```py\nprint('hi')\n```";
 const ERROR_TEXT = "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: nope";
@@ -134,6 +166,8 @@ const EXTRACT_CASES: Array<{ name: string; text: string; ratioMillis: number }> 
     { name: "long-prose-300", text: LONG_PROSE, ratioMillis: 300 },
     { name: "repetitive-600", text: REPETITIVE_PROSE, ratioMillis: 600 },
     { name: "listy-500", text: LISTY_TEXT, ratioMillis: 500 },
+    { name: "release-checklist-500", text: RELEASE_CHECKLIST, ratioMillis: 500 },
+    { name: "multi-paragraph-500", text: MULTI_PARAGRAPH, ratioMillis: 500 },
 ];
 
 // ------------------------------------------------------------------------ //
@@ -347,6 +381,23 @@ emit("word-tokens.json", [
                 { role: "user", content: "hello" },
                 { role: "assistant", content: "hi" },
                 { role: "user", content: "hello" },
+            ],
+        },
+        {
+            // `protect` omitted: pins the default lastTurns=2 — the last
+            // two messages must come back verbatim.
+            name: "protect-default",
+            config: {
+                mode: "on",
+                routing: { prose: "extract" },
+                trigger: { thresholdTokens: 1 },
+            },
+            input: [
+                { role: "user", content: LONG_PROSE },
+                { role: "user", content: REPETITIVE_PROSE },
+                { role: "user", content: LISTY_TEXT },
+                { role: "user", content: INCIDENT_SUMMARY },
+                { role: "user", content: MULTI_PARAGRAPH },
             ],
         },
     ];

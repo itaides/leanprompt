@@ -11,7 +11,6 @@
  * We err on the side of preservation.
  */
 
-import { createHash } from "node:crypto";
 import { getTextContent } from "./content.js";
 import { ContentType } from "./types.js";
 import type { ChatMessage } from "./types.js";
@@ -141,7 +140,7 @@ export class RepeatTracker {
      * the content as seen, so a subsequent identical message still reports true.
      */
     isRepeat(message: ChatMessage): boolean {
-        const h = RepeatTracker.hash(message);
+        const h = RepeatTracker.key(message);
         if (h === "") {
             return false;
         }
@@ -156,7 +155,7 @@ export class RepeatTracker {
         this.seen.clear();
     }
 
-    private static hash(message: ChatMessage): string {
+    private static key(message: ChatMessage): string {
         // Skip messages that carry tool-use linkage: tool_use and tool_result
         // blocks pair by id, so dropping a "duplicate" tool_result would orphan
         // the matching tool_use in the preceding assistant message.
@@ -173,7 +172,7 @@ export class RepeatTracker {
         // Include role so a user "ok" and an assistant "ok" don't collapse into
         // one message — those are distinct turns in the conversation.
         const role = typeof message.role === "string" ? message.role : "";
-        return createHash("sha256").update(`${role}|${text}`, "utf8").digest("hex");
+        return `${role}|${text}`;
     }
 }
 

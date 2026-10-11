@@ -24,7 +24,9 @@
  *      shingle Jaccard vs an already-kept sentence exceeds 60% — UNLESS it is
  *      a list item, or its digit-bearing tokens differ from the kept twin
  *      (log-like lines that differ only in a number are all signal).
- *   6. Emit kept sentences in original order.
+ *   6. Emit kept sentences in original order, re-joined with the source
+ *      line structure (same line → space, next line → newline, paragraph
+ *      break → blank line).
  *
  * DETERMINISM SPEC (normative for all language ports):
  *   - Integer arithmetic only in scoring — no log(), no float accumulation.
@@ -380,6 +382,13 @@ export interface Sentence {
     text: string;
     /** Line came from a markdown list / table row — exempt from redundancy. */
     listItem: boolean;
+    /** 0-based index of the source line among non-empty trimmed lines. */
+    line: number;
+    /**
+     * At least one empty/whitespace-only line immediately preceded this
+     * sentence's source line (always false for the first line).
+     */
+    paragraphBreak: boolean;
 }
 
 /**
@@ -391,17 +400,26 @@ export interface Sentence {
  */
 export function segmentSentences(text: string): Sentence[] {
     const out: Sentence[] = [];
+    let lineIndex = -1;
+    let pendingBreak = false;
     for (const rawLine of text.split("\n")) {
         const line = rawLine.trim();
         if (!line) {
+            // Blank lines after content mark a paragraph boundary.
+            if (lineIndex >= 0) {
+                pendingBreak = true;
+            }
             continue;
         }
+        lineIndex += 1;
+        const paragraphBreak = pendingBreak;
+        pendingBreak = false;
         if (isListLine(line)) {
-            out.push({ text: line, listItem: true });
+            out.push({ text: line, listItem: true, line: lineIndex, paragraphBreak });
             continue;
         }
         if ([...line].length <= MIN_SENTENCE_CHARS) {
-            out.push({ text: line, listItem: false });
+            out.push({ text: line, listItem: false, line: lineIndex, paragraphBreak });
             continue;
         }
         let start = 0;
@@ -426,13 +444,13 @@ export function segmentSentences(text: string): Sentence[] {
             }
             const piece = line.slice(start, i + 1).trim();
             if (piece) {
-                out.push({ text: piece, listItem: false });
+                out.push({ text: piece, listItem: false, line: lineIndex, paragraphBreak });
             }
             start = i + 1;
         }
         const rest = line.slice(start).trim();
         if (rest) {
-            out.push({ text: rest, listItem: false });
+            out.push({ text: rest, listItem: false, line: lineIndex, paragraphBreak });
         }
     }
     return out;
@@ -520,6 +538,8 @@ interface ScoredSentence {
     digitTokens: string[];
     /** Cached 3-word shingle set of the sentence's words. */
     shingleSet: Set<string>;
+    line: number;
+    paragraphBreak: boolean;
 }
 
 /**
@@ -563,6 +583,8 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
             anaphoric: words.length > 0 && ANAPHORIC_OPENERS.has(words[0]!),
             digitTokens: words.filter((w) => hasAsciiDigit(w)),
             shingleSet: shingles(words),
+            line: s.line,
+            paragraphBreak: s.paragraphBreak,
         };
     });
 
@@ -618,7 +640,18 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
     }
 
     const kept = [...keptByIndex.values()].sort((a, b) => a.index - b.index);
-    return kept.map((s) => s.text).join(" ");
+    // Re-emit with the source line structure: same-line sentences share a
+    // space, a new line starts on "\n", a paragraph break on "\n\n".
+    let out = "";
+    for (let i = 0; i < kept.length; i++) {
+        if (i > 0) {
+            const prev = kept[i - 1]!;
+            const cur = kept[i]!;
+            out += prev.line === cur.line ? " " : cur.paragraphBreak ? "\n\n" : "\n";
+        }
+        out += kept[i]!.text;
+    }
+    return out;
 }
 
 function hasAsciiDigit(word: string): boolean {

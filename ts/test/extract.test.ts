@@ -194,6 +194,34 @@ describe("selectSentences", () => {
         const sentences = segmentSentences(longProse());
         expect(selectSentences(sentences, 500)).toBe(selectSentences(sentences, 500));
     });
+
+    test("line structure: lists stay one per line, paragraphs keep blank lines", () => {
+        const text = [
+            "Release checklist for version 3.2 of the deployment service:",
+            "- verify the release branch is green in CI",
+            "- announce the deployment window in the operations channel",
+            "- run the smoke suite against the canary environment",
+            "",
+            "| service | owner | sla |",
+            "| auth | alice | 99.9 |",
+            "| billing | bob | 99.95 |",
+            "",
+            "Do not deploy on Fridays. Always page the on-call engineer before a rollback.",
+        ].join("\n");
+        // ratio 1000 keeps everything: output must be byte-equal to input.
+        const out = selectSentences(segmentSentences(text), 1000);
+        expect(out).toBe(text);
+        // With a real ratio, kept list/table lines still land on their own
+        // lines (no flattening), and a paragraph break stays a blank line.
+        const compressed = selectSentences(segmentSentences(text), 600);
+        const inputLines = text.split("\n");
+        for (const line of compressed.split("\n")) {
+            if (line.startsWith("- ") || line.startsWith("|")) {
+                expect(inputLines).toContain(line);
+            }
+        }
+        expect(compressed).toContain("\n\n");
+    });
 });
 
 // ------------------------------------------------------------------------ //

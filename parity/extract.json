@@ -6,43 +6,63 @@
     "sentences": [
       {
         "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Basically the whole thing is a matter of unfortunate timing in the scheduler.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The release step retried three times with exponential backoff and then gave up permanently.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The retry logic waited 2s, then 4s, then 8s between the attempts before failing.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Engineering has been informed about the incident and they are looking into it now.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The team decided to pin the rotation job to run only after release windows close.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "This decision prevents the race condition from recurring in future deployments.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Do not restart the rotation job manually while a release is in progress.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "As mentioned earlier, the timing issue is the root cause of the whole problem.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       }
     ],
     "selected": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
@@ -54,43 +74,63 @@
     "sentences": [
       {
         "text": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Basically the whole thing is a matter of unfortunate timing in the scheduler.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The release step retried three times with exponential backoff and then gave up permanently.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The retry logic waited 2s, then 4s, then 8s between the attempts before failing.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Engineering has been informed about the incident and they are looking into it now.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The team decided to pin the rotation job to run only after release windows close.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "This decision prevents the race condition from recurring in future deployments.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Do not restart the rotation job manually while a release is in progress.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "As mentioned earlier, the timing issue is the root cause of the whole problem.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       }
     ],
     "selected": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Do not restart the rotation job manually while a release is in progress. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
@@ -102,23 +142,33 @@
     "sentences": [
       {
         "text": "The nightly build failed on runner 12 with a disk space exhaustion error.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The nightly build failed on runner 14 with a disk space exhaustion error.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "Cleaning the docker cache on each runner freed roughly forty gigabytes of space.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "The team added a scheduled cache cleanup job that runs every morning at 06:00.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "It also alerts the on-call engineer when free space drops below ten percent.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       }
     ],
     "selected": "The nightly build failed on runner 12 with a disk space exhaustion error. Cleaning the docker cache on each runner freed roughly forty gigabytes of space. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent."
@@ -130,37 +180,213 @@
     "sentences": [
       {
         "text": "Deployment checklist for the gamma cluster rollout process.",
-        "listItem": false
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
       },
       {
         "text": "- verify the release branch is green in CI",
-        "listItem": true
+        "listItem": true,
+        "line": 1,
+        "paragraphBreak": false
       },
       {
         "text": "- announce the deployment window in the operations channel",
-        "listItem": true
+        "listItem": true,
+        "line": 2,
+        "paragraphBreak": false
       },
       {
         "text": "- pin the credential rotation job before starting",
-        "listItem": true
+        "listItem": true,
+        "line": 3,
+        "paragraphBreak": false
       },
       {
         "text": "- run the smoke suite against the canary environment",
-        "listItem": true
+        "listItem": true,
+        "line": 4,
+        "paragraphBreak": false
       },
       {
         "text": "1. take a database snapshot first",
-        "listItem": true
+        "listItem": true,
+        "line": 5,
+        "paragraphBreak": false
       },
       {
         "text": "2. apply the migration scripts in order",
-        "listItem": true
+        "listItem": true,
+        "line": 6,
+        "paragraphBreak": false
       },
       {
         "text": "The rollback procedure is documented in runbooks/gamma-rollback.md for emergencies.",
-        "listItem": false
+        "listItem": false,
+        "line": 7,
+        "paragraphBreak": false
       }
     ],
-    "selected": "Deployment checklist for the gamma cluster rollout process. 1. take a database snapshot first 2. apply the migration scripts in order The rollback procedure is documented in runbooks/gamma-rollback.md for emergencies."
+    "selected": "Deployment checklist for the gamma cluster rollout process.\n1. take a database snapshot first\n2. apply the migration scripts in order\nThe rollback procedure is documented in runbooks/gamma-rollback.md for emergencies."
+  },
+  {
+    "name": "release-checklist-500",
+    "text": "Release checklist for version 3.2 of the deployment service:\n- Step 1: verify component auth passes its smoke test on staging cluster 0\n- Step 2: verify component billing passes its smoke test on staging cluster 1\n- Step 3: verify component search passes its smoke test on staging cluster 2\n- Step 4: verify component cache passes its smoke test on staging cluster 0\n- Step 5: verify component queue passes its smoke test on staging cluster 1\n- Step 6: verify component mailer passes its smoke test on staging cluster 2\n- Step 7: verify component cdn passes its smoke test on staging cluster 0\n- Step 8: verify component db passes its smoke test on staging cluster 1\n- Step 9: verify component api passes its smoke test on staging cluster 2\n- Step 10: verify component ui passes its smoke test on staging cluster 0\n- Step 11: verify component docs passes its smoke test on staging cluster 1\n- Step 12: verify component infra passes its smoke test on staging cluster 2\n\n| service | owner | sla |\n| auth | alice | 99.9 |\n| billing | bob | 99.95 |\n\nDo not deploy on Fridays. Always page the on-call engineer before a rollback.",
+    "ratioMillis": 500,
+    "sentences": [
+      {
+        "text": "Release checklist for version 3.2 of the deployment service:",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 1: verify component auth passes its smoke test on staging cluster 0",
+        "listItem": true,
+        "line": 1,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 2: verify component billing passes its smoke test on staging cluster 1",
+        "listItem": true,
+        "line": 2,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 3: verify component search passes its smoke test on staging cluster 2",
+        "listItem": true,
+        "line": 3,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 4: verify component cache passes its smoke test on staging cluster 0",
+        "listItem": true,
+        "line": 4,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 5: verify component queue passes its smoke test on staging cluster 1",
+        "listItem": true,
+        "line": 5,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 6: verify component mailer passes its smoke test on staging cluster 2",
+        "listItem": true,
+        "line": 6,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 7: verify component cdn passes its smoke test on staging cluster 0",
+        "listItem": true,
+        "line": 7,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 8: verify component db passes its smoke test on staging cluster 1",
+        "listItem": true,
+        "line": 8,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 9: verify component api passes its smoke test on staging cluster 2",
+        "listItem": true,
+        "line": 9,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 10: verify component ui passes its smoke test on staging cluster 0",
+        "listItem": true,
+        "line": 10,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 11: verify component docs passes its smoke test on staging cluster 1",
+        "listItem": true,
+        "line": 11,
+        "paragraphBreak": false
+      },
+      {
+        "text": "- Step 12: verify component infra passes its smoke test on staging cluster 2",
+        "listItem": true,
+        "line": 12,
+        "paragraphBreak": false
+      },
+      {
+        "text": "| service | owner | sla |",
+        "listItem": true,
+        "line": 13,
+        "paragraphBreak": true
+      },
+      {
+        "text": "| auth | alice | 99.9 |",
+        "listItem": true,
+        "line": 14,
+        "paragraphBreak": false
+      },
+      {
+        "text": "| billing | bob | 99.95 |",
+        "listItem": true,
+        "line": 15,
+        "paragraphBreak": false
+      },
+      {
+        "text": "Do not deploy on Fridays.",
+        "listItem": false,
+        "line": 16,
+        "paragraphBreak": true
+      },
+      {
+        "text": "Always page the on-call engineer before a rollback.",
+        "listItem": false,
+        "line": 16,
+        "paragraphBreak": true
+      }
+    ],
+    "selected": "Release checklist for version 3.2 of the deployment service:\n- Step 4: verify component cache passes its smoke test on staging cluster 0\n- Step 5: verify component queue passes its smoke test on staging cluster 1\n- Step 6: verify component mailer passes its smoke test on staging cluster 2\n- Step 7: verify component cdn passes its smoke test on staging cluster 0\n- Step 10: verify component ui passes its smoke test on staging cluster 0\n\n| service | owner | sla |\n| auth | alice | 99.9 |\n| billing | bob | 99.95 |\n\nDo not deploy on Fridays. Always page the on-call engineer before a rollback."
+  },
+  {
+    "name": "multi-paragraph-500",
+    "text": "The migration started on Monday and finished ahead of schedule.\nEvery shard was copied twice and verified with checksums.\n\nDuring the second phase the read traffic was shifted gradually to the new cluster.\nLatency stayed within the expected bounds for the entire window.\n\nThe final cutover required a brief write pause of under two minutes.\nMonitoring dashboards confirmed no elevated error rates afterwards.",
+    "ratioMillis": 500,
+    "sentences": [
+      {
+        "text": "The migration started on Monday and finished ahead of schedule.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "Every shard was copied twice and verified with checksums.",
+        "listItem": false,
+        "line": 1,
+        "paragraphBreak": false
+      },
+      {
+        "text": "During the second phase the read traffic was shifted gradually to the new cluster.",
+        "listItem": false,
+        "line": 2,
+        "paragraphBreak": true
+      },
+      {
+        "text": "Latency stayed within the expected bounds for the entire window.",
+        "listItem": false,
+        "line": 3,
+        "paragraphBreak": false
+      },
+      {
+        "text": "The final cutover required a brief write pause of under two minutes.",
+        "listItem": false,
+        "line": 4,
+        "paragraphBreak": true
+      },
+      {
+        "text": "Monitoring dashboards confirmed no elevated error rates afterwards.",
+        "listItem": false,
+        "line": 5,
+        "paragraphBreak": false
+      }
+    ],
+    "selected": "Latency stayed within the expected bounds for the entire window.\n\nThe final cutover required a brief write pause of under two minutes.\nMonitoring dashboards confirmed no elevated error rates afterwards."
   }
 ]

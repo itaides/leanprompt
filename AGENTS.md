@@ -42,7 +42,7 @@ CI runs all of these.
 ## Conventions
 
 - TypeScript: 4-space indent, double quotes, ES modules.
-- Rust: `cargo fmt` style; zero-dependency JSON/SHA-256 implemented in-crate.
+- Rust: `cargo fmt` style; zero-dependency JSON implemented in-crate.
 - Go: `gofmt`; standard library only.
 - Scoring/arithmetic in the compression path is integer-only so all three
   languages produce identical results. No floats, no platform-dependent

@@ -158,5 +158,64 @@
     "inputTokens": 5,
     "outputTokens": 5,
     "method": "below-threshold"
+  },
+  {
+    "name": "protect-default",
+    "config": {
+      "mode": "on",
+      "routing": {
+        "prose": "extract"
+      },
+      "trigger": {
+        "thresholdTokens": 1
+      }
+    },
+    "input": [
+      {
+        "role": "user",
+        "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. Basically the whole thing is a matter of unfortunate timing in the scheduler. The release step retried three times with exponential backoff and then gave up permanently. The retry logic waited 2s, then 4s, then 8s between the attempts before failing. Engineering has been informed about the incident and they are looking into it now. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. As mentioned earlier, the timing issue is the root cause of the whole problem. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+      },
+      {
+        "role": "user",
+        "content": "The nightly build failed on runner 12 with a disk space exhaustion error. The nightly build failed on runner 14 with a disk space exhaustion error. Cleaning the docker cache on each runner freed roughly forty gigabytes of space. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent."
+      },
+      {
+        "role": "user",
+        "content": "Deployment checklist for the gamma cluster rollout process.\n- verify the release branch is green in CI\n- announce the deployment window in the operations channel\n- pin the credential rotation job before starting\n- run the smoke suite against the canary environment\n1. take a database snapshot first\n2. apply the migration scripts in order\nThe rollback procedure is documented in runbooks/gamma-rollback.md for emergencies."
+      },
+      {
+        "role": "user",
+        "content": "The cache layer began evicting entries aggressively after the memory limit was lowered. Requests then fell back to the database and saturated its connection pool. Restoring the previous limit brought hit rates back to normal within an hour."
+      },
+      {
+        "role": "user",
+        "content": "The migration started on Monday and finished ahead of schedule.\nEvery shard was copied twice and verified with checksums.\n\nDuring the second phase the read traffic was shifted gradually to the new cluster.\nLatency stayed within the expected bounds for the entire window.\n\nThe final cutover required a brief write pause of under two minutes.\nMonitoring dashboards confirmed no elevated error rates afterwards."
+      }
+    ],
+    "output": [
+      {
+        "role": "user",
+        "content": "The deployment pipeline failed at 14:32 UTC on cluster gamma-7 because the credential rotation job removed the token before the release step consumed it. The team decided to pin the rotation job to run only after release windows close. This decision prevents the race condition from recurring in future deployments. Do not restart the rotation job manually while a release is in progress. The postmortem document lives at docs/incidents/2026-07-21-gamma.md for reference."
+      },
+      {
+        "role": "user",
+        "content": "The nightly build failed on runner 12 with a disk space exhaustion error. The team added a scheduled cache cleanup job that runs every morning at 06:00. It also alerts the on-call engineer when free space drops below ten percent."
+      },
+      {
+        "role": "user",
+        "content": "Deployment checklist for the gamma cluster rollout process.\n1. take a database snapshot first\n2. apply the migration scripts in order\nThe rollback procedure is documented in runbooks/gamma-rollback.md for emergencies."
+      },
+      {
+        "role": "user",
+        "content": "The cache layer began evicting entries aggressively after the memory limit was lowered. Requests then fell back to the database and saturated its connection pool. Restoring the previous limit brought hit rates back to normal within an hour."
+      },
+      {
+        "role": "user",
+        "content": "The migration started on Monday and finished ahead of schedule.\nEvery shard was copied twice and verified with checksums.\n\nDuring the second phase the read traffic was shifted gradually to the new cluster.\nLatency stayed within the expected bounds for the entire window.\n\nThe final cutover required a brief write pause of under two minutes.\nMonitoring dashboards confirmed no elevated error rates afterwards."
+      }
+    ],
+    "inputTokens": 674,
+    "outputTokens": 454,
+    "method": "hybrid"
   }
 ]

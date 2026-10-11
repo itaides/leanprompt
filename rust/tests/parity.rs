@@ -125,6 +125,8 @@ fn extract_vectors() {
             .map(|s| Sentence {
                 text: s.str_field("text").to_string(),
                 list_item: s.get("listItem").and_then(Value::as_bool).unwrap(),
+                line: s.get("line").and_then(Value::as_i64).unwrap() as usize,
+                paragraph_break: s.get("paragraphBreak").and_then(Value::as_bool).unwrap(),
             })
             .collect();
         assert_eq!(sentences, expected_sentences, "segmentation for {name}");

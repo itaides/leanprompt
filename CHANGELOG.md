@@ -6,6 +6,29 @@ All notable changes to this project are documented here. Format follows
 in lockstep (enforced by CI); Go has no manifest version and is released
 via its own `go/vX.Y.Z` git tag.
 
+## [Unreleased]
+
+### Fixed
+- `DedupStrategy` no longer drops messages with tool linkage beyond
+  Anthropic `tool_use`/`tool_result` blocks: `tool`/`function` roles,
+  `tool_calls`, `function_call`, and single-object block content now also
+  mark a message as linked. Two identical OpenAI `role: "tool"` results are
+  kept, so a dedup can no longer orphan a `tool_calls` entry (OpenAI 400).
+- `PurgeErrorsStrategy` no longer purges `system` messages whose text
+  merely contains an error marker.
+- `PurgeErrorsStrategy` no longer flattens block-array `content` to the
+  placeholder string. It now trims per block -- a `tool_result` keeps its
+  shape, `tool_use_id`, and (for OpenAI tool messages) `tool_call_id`, so
+  purging can no longer orphan a paired `tool_use` (Anthropic 400).
+- `DedupStrategy`/`RepeatTracker` no longer hash `system` messages, so
+  duplicate system prompts are kept.
+
+### Changed
+- Middleware pipeline order: the token count and threshold gate now run on
+  the ORIGINAL message list, before strategies. Below-threshold calls
+  return the input untouched (strategies no longer run), and
+  `inputTokens`/`leanpromptTokensSaved` now include dedup/purge savings.
+
 ## [0.2.0] — 2026-08-02
 
 ### Added

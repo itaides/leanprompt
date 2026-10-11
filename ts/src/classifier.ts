@@ -95,7 +95,7 @@ export function classify(message: ChatMessage): ContentType {
     return ContentType.PROSE;
 }
 
-function looksLikeError(text: string): boolean {
+export function looksLikeError(text: string): boolean {
     return ERROR_MARKERS.some((marker) => text.includes(marker));
 }
 
@@ -163,6 +163,9 @@ export class RepeatTracker {
         if (hasToolLinkage(message)) {
             return "";
         }
+        if (message.role === "system") {
+            return "";
+        }
         const text = getTextContent(message);
         if (!text) {
             return "";
@@ -174,17 +177,36 @@ export class RepeatTracker {
     }
 }
 
-/** True if this message contains tool_use or tool_result blocks. */
+/**
+ * True if this message participates in a tool-call chain: tool_use or
+ * tool_result blocks (in a list or as a single object block), tool/function
+ * roles, or provider tool-call fields. Such messages pair by id, so dropping
+ * or reordering them can orphan their counterpart.
+ */
 export function hasToolLinkage(message: ChatMessage): boolean {
+    const isToolBlock = (block: unknown): boolean => {
+        if (block === null || typeof block !== "object") {
+            return false;
+        }
+        const btype = (block as Record<string, unknown>).type;
+        return btype === "tool_use" || btype === "tool_result";
+    };
+
     const content = message.content;
-    if (!Array.isArray(content)) {
-        return false;
+    if (Array.isArray(content)) {
+        if (content.some(isToolBlock)) {
+            return true;
+        }
+    } else if (isToolBlock(content)) {
+        return true;
     }
-    return content.some(
-        (block) =>
-            block !== null &&
-            typeof block === "object" &&
-            ((block as Record<string, unknown>).type === "tool_use" ||
-                (block as Record<string, unknown>).type === "tool_result"),
-    );
+
+    if (message.role === "tool" || message.role === "function") {
+        return true;
+    }
+    if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+        return true;
+    }
+    const functionCall = message.function_call;
+    return functionCall !== null && typeof functionCall === "object";
 }

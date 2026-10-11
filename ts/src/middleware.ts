@@ -5,10 +5,12 @@
  * whether to compress, and runs the pipeline:
  *
  *   1. Check mode (off → passthrough)
- *   2. Apply strategies (dedup, purge-errors)
- *   3. Check token budget (below threshold → passthrough)
- *   4. For each message: classify() → Router picks a Compressor → compress
- *   5. Aggregate stats and return.
+ *   2. Count input tokens on the ORIGINAL message list
+ *   3. Check token budget (below threshold → passthrough, untouched)
+ *   4. Apply strategies (dedup, purge-errors)
+ *   5. For each message: classify() → Router picks a Compressor → compress
+ *   6. Aggregate stats and return -- inputTokens stays the pre-strategy
+ *      count, so dedup/purge savings count toward tokensSaved.
  */
 
 import { classify } from "./classifier.js";
@@ -99,13 +101,6 @@ export class Middleware {
             ];
         }
 
-        for (const strategy of this.strategies) {
-            messages = strategy.apply(messages);
-        }
-        if (messages.length === 0) {
-            return [messages, makeStats({ method: "empty" })];
-        }
-
         const inputTokens = countMessageTokens(messages);
         if (inputTokens < this.threshold) {
             return [
@@ -119,8 +114,17 @@ export class Middleware {
             ];
         }
 
+        for (const strategy of this.strategies) {
+            messages = strategy.apply(messages);
+        }
+        if (messages.length === 0) {
+            return [
+                messages,
+                makeStats({ inputTokens, outputTokens: 0, ratio: 0, method: "empty" }),
+            ];
+        }
+
         const outMsgs: ChatMessage[] = [];
-        let totalIn = 0;
         let totalOut = 0;
         let totalCost = 0;
         const methods = new Set<string>();
@@ -132,13 +136,12 @@ export class Middleware {
                 : this.router.route(classify(msg));
             const [compressed, stats] = compressor.compress([msg]);
             outMsgs.push(...compressed);
-            totalIn += stats.inputTokens;
             totalOut += stats.outputTokens;
             totalCost += stats.costUsd;
             methods.add(stats.method);
         }
 
-        return [outMsgs, aggregate(totalIn, totalOut, totalCost, methods)];
+        return [outMsgs, aggregate(inputTokens, totalOut, totalCost, methods)];
     }
 
     async compressMessagesAsync(
@@ -151,13 +154,6 @@ export class Middleware {
             ];
         }
 
-        for (const strategy of this.strategies) {
-            messages = strategy.apply(messages);
-        }
-        if (messages.length === 0) {
-            return [messages, makeStats({ method: "empty" })];
-        }
-
         const inputTokens = countMessageTokens(messages);
         if (inputTokens < this.threshold) {
             return [
@@ -171,8 +167,17 @@ export class Middleware {
             ];
         }
 
+        for (const strategy of this.strategies) {
+            messages = strategy.apply(messages);
+        }
+        if (messages.length === 0) {
+            return [
+                messages,
+                makeStats({ inputTokens, outputTokens: 0, ratio: 0, method: "empty" }),
+            ];
+        }
+
         const outMsgs: ChatMessage[] = [];
-        let totalIn = 0;
         let totalOut = 0;
         let totalCost = 0;
         const methods = new Set<string>();
@@ -184,13 +189,12 @@ export class Middleware {
                 : this.router.route(classify(msg));
             const [compressed, stats] = await compressor.compressAsync([msg]);
             outMsgs.push(...compressed);
-            totalIn += stats.inputTokens;
             totalOut += stats.outputTokens;
             totalCost += stats.costUsd;
             methods.add(stats.method);
         }
 
-        return [outMsgs, aggregate(totalIn, totalOut, totalCost, methods)];
+        return [outMsgs, aggregate(inputTokens, totalOut, totalCost, methods)];
     }
 
     private buildRouter(config: LeanpromptConfig): Router {

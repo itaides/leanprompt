@@ -1,8 +1,120 @@
 {
   "input": [
     {
+      "role": "system",
+      "content": "You are a helpful agent. If a tool returns 'Error: not found', retry once."
+    },
+    {
       "role": "user",
       "content": "Error: catastrophic failure with a large payload attached here"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "content": "Error: index rebuild timed out after 30s"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2",
+      "content": "README.md\nsrc\ntests\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3",
+      "content": "README.md\nsrc\ntests\n"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a1",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a2",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t1",
+          "content": "Error: build failed with a very large log attached here"
+        },
+        {
+          "type": "text",
+          "text": "fine"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t2",
+          "content": [
+            {
+              "type": "text",
+              "text": "ERROR: boom while compiling the module"
+            },
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": {
+        "type": "tool_result",
+        "tool_use_id": "t3",
+        "content": "Error: single object block shape"
+      }
     },
     {
       "role": "user",
@@ -18,7 +130,7 @@
     },
     {
       "role": "assistant",
-      "content": "answer two"
+      "content": "Error: recent failure that should survive purge"
     },
     {
       "role": "user",
@@ -27,8 +139,120 @@
   ],
   "dedup": [
     {
+      "role": "system",
+      "content": "You are a helpful agent. If a tool returns 'Error: not found', retry once."
+    },
+    {
       "role": "user",
       "content": "Error: catastrophic failure with a large payload attached here"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "content": "Error: index rebuild timed out after 30s"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2",
+      "content": "README.md\nsrc\ntests\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3",
+      "content": "README.md\nsrc\ntests\n"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a1",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a2",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t1",
+          "content": "Error: build failed with a very large log attached here"
+        },
+        {
+          "type": "text",
+          "text": "fine"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t2",
+          "content": [
+            {
+              "type": "text",
+              "text": "ERROR: boom while compiling the module"
+            },
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": {
+        "type": "tool_result",
+        "tool_use_id": "t3",
+        "content": "Error: single object block shape"
+      }
     },
     {
       "role": "user",
@@ -40,7 +264,7 @@
     },
     {
       "role": "assistant",
-      "content": "answer two"
+      "content": "Error: recent failure that should survive purge"
     },
     {
       "role": "user",
@@ -49,8 +273,120 @@
   ],
   "purgeAfter2": [
     {
+      "role": "system",
+      "content": "You are a helpful agent. If a tool returns 'Error: not found', retry once."
+    },
+    {
       "role": "user",
       "content": "[errored output purged for context compaction]"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_1",
+      "content": "[errored output purged for context compaction]"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2",
+      "content": "README.md\nsrc\ntests\n"
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_3",
+      "content": "README.md\nsrc\ntests\n"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a1",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a2",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t1",
+          "content": "[errored output purged for context compaction]"
+        },
+        {
+          "type": "text",
+          "text": "fine"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t2",
+          "content": [
+            {
+              "type": "text",
+              "text": "[errored output purged for context compaction]"
+            },
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": {
+        "type": "tool_result",
+        "tool_use_id": "t3",
+        "content": "[errored output purged for context compaction]"
+      }
     },
     {
       "role": "user",
@@ -66,7 +402,7 @@
     },
     {
       "role": "assistant",
-      "content": "answer two"
+      "content": "Error: recent failure that should survive purge"
     },
     {
       "role": "user",

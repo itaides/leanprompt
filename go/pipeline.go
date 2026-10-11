@@ -71,7 +71,9 @@ func (DedupStrategy) Apply(messages []Message) []Message {
 const purgePlaceholder = "[errored output purged for context compaction]"
 
 // PurgeErrorsStrategy replaces the content of errored messages older than
-// AfterTurns with a short placeholder.
+// AfterTurns with a short placeholder. System messages are never purged,
+// and structured content is trimmed per block so a tool_result keeps its
+// shape and linkage ids.
 type PurgeErrorsStrategy struct {
 	AfterTurns int
 }
@@ -85,13 +87,55 @@ func (s PurgeErrorsStrategy) Apply(messages []Message) []Message {
 	cutoff := len(messages) - s.AfterTurns
 	out := make([]Message, len(messages))
 	for i, msg := range messages {
-		if i < cutoff && Classify(msg) == ErrorType {
-			out[i] = cloneWith(msg, "content", purgePlaceholder)
-		} else {
+		if i >= cutoff || strField(msg, "role") == "system" || Classify(msg) != ErrorType {
 			out[i] = msg
+			continue
 		}
+		out[i] = cloneWith(msg, "content", purgeContent(msg["content"]))
 	}
 	return out
+}
+
+func purgeContent(content any) any {
+	switch v := content.(type) {
+	case string:
+		return purgePlaceholder
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = purgeBlock(item)
+		}
+		return out
+	case map[string]any:
+		return purgeBlock(v)
+	}
+	return content
+}
+
+func purgeBlock(block any) any {
+	b, ok := block.(map[string]any)
+	if !ok {
+		return block
+	}
+	if !looksLikeError(extractText(b)) {
+		return block
+	}
+	switch strField(b, "type") {
+	case "text":
+		return cloneWith(b, "text", purgePlaceholder)
+	case "tool_result":
+		switch inner := b["content"].(type) {
+		case string:
+			return cloneWith(b, "content", purgePlaceholder)
+		case []any:
+			out := make([]any, len(inner))
+			for i, item := range inner {
+				out[i] = purgeBlock(item)
+			}
+			return cloneWith(b, "content", out)
+		}
+	}
+	return block
 }
 
 // ------------------------------------------------------------------------ //
@@ -195,20 +239,27 @@ func (m *Middleware) CompressMessages(messages []Message) ([]Message, Compressio
 		return messages, statsWithMethod(method)
 	}
 
-	for _, strategy := range m.strategies {
-		messages = strategy.Apply(messages)
-	}
-	if len(messages) == 0 {
-		return messages, statsWithMethod("empty")
-	}
-
+	// Token count is taken on the ORIGINAL list so dedup/purge savings count
+	// toward tokensSaved (parity-spec §9).
 	inputTokens := CountMessageTokens(messages)
 	if inputTokens < m.threshold {
 		return messages, statsCounted("below-threshold", inputTokens, inputTokens)
 	}
 
+	for _, strategy := range m.strategies {
+		messages = strategy.Apply(messages)
+	}
+	if len(messages) == 0 {
+		return messages, CompressionStats{
+			InputTokens:  inputTokens,
+			OutputTokens: 0,
+			Ratio:        0,
+			Method:       "empty",
+		}
+	}
+
 	out := make([]Message, 0, len(messages))
-	var totalIn, totalOut int64
+	var totalOut int64
 	var totalCost float64
 	methods := make(map[string]struct{})
 
@@ -221,13 +272,12 @@ func (m *Middleware) CompressMessages(messages []Message) ([]Message, Compressio
 		}
 		compressed, stats := compressor.Compress([]Message{msg})
 		out = append(out, compressed...)
-		totalIn += stats.InputTokens
 		totalOut += stats.OutputTokens
 		totalCost += stats.CostUSD
 		methods[stats.Method] = struct{}{}
 	}
 
-	return out, aggregate(totalIn, totalOut, totalCost, methods)
+	return out, aggregate(inputTokens, totalOut, totalCost, methods)
 }
 
 // System messages and the last K turns are never handed to a lossy

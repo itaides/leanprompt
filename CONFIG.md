@@ -15,7 +15,7 @@ Gates the whole pipeline.
 | `"off"` (default) | Passthrough. Messages returned unchanged, zero-valued stats. |
 | `"passthrough"` | Same as `"off"`. |
 | `"disabled"` | Same as `"off"`. |
-| `"on"` | Active: strategies run, threshold gate applies, routing/compression happens. |
+| `"on"` | Active: threshold gate applies, then strategies and routing/compression run. |
 | `"hybrid"` | Same activation as `"on"`. (Not to be confused with `stats.method === "hybrid"`, which the middleware reports automatically when a single call routed different messages through different compressors — that's an output, not something you set.) |
 
 ```ts
@@ -119,14 +119,18 @@ Config{ProtectLastTurns: 4}
 
 ## `strategies` — pre-compression filters, applied before classification/routing
 
-Run in this order, before the threshold gate: **dedup**, then **purgeErrors**.
+Run in this order, after the threshold gate and before per-message
+classification/routing: **dedup**, then **purgeErrors**. A call under
+`trigger.thresholdTokens` never runs them.
 
 ### `strategies.dedup` (TS) / `dedup` (Rust) / `DedupDisabled` (Go, inverted)
 
 Drops later messages whose text content exactly duplicates an earlier one in
 the *same call* (fresh tracker per call — no cross-call state). Messages
-carrying `tool_use`/`tool_result` blocks are never deduped (dropping one would
-orphan its paired block). **Default: `true`** (enabled).
+with tool linkage are never deduped: `tool_use`/`tool_result` blocks (list or
+single-object), `tool`/`function` roles, `tool_calls`, and `function_call`
+fields -- dropping one would orphan its paired call. `system` messages are
+never deduped either. **Default: `true`** (enabled).
 
 ```ts
 { strategies: { dedup: false } }
@@ -143,7 +147,10 @@ Config{DedupDisabled: true}   // inverted field name in Go
 Replaces the content of `error`-classified messages older than N turns with
 the placeholder `[errored output purged for context compaction]`. The fact
 that an error occurred survives; the (often huge) traceback/output doesn't.
-**Default: enabled, `afterTurns: 4`.**
+`system` messages are never purged. Structured content is trimmed per block --
+a `tool_result` keeps its block shape and ids (`tool_use_id`, `tool_call_id`)
+so its paired `tool_use` is never orphaned, and only blocks whose own text
+contains an error marker are replaced. **Default: enabled, `afterTurns: 4`.**
 
 ```ts
 { strategies: { purgeErrors: { afterTurns: 2 } } }   // or `purgeErrors: false` to disable

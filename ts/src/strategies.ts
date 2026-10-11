@@ -5,7 +5,8 @@
  * takes the full message list and returns a (possibly) reduced list.
  */
 
-import { classify, RepeatTracker } from "./classifier.js";
+import { classify, looksLikeError, RepeatTracker } from "./classifier.js";
+import { extractText } from "./content.js";
 import { ContentType } from "./types.js";
 import type { ChatMessage } from "./types.js";
 
@@ -47,6 +48,9 @@ const DEFAULT_PURGE_PLACEHOLDER = "[errored output purged for context compaction
  *
  * Replaces the content of errored messages older than `afterTurns` ago with a
  * short placeholder. The fact of the error survives; the bulk doesn't.
+ * System messages are never purged, and structured content is trimmed per
+ * block -- a `tool_result` keeps its block shape and linkage ids so its paired
+ * `tool_use` is never orphaned.
  */
 export class PurgeErrorsStrategy implements Strategy {
     readonly name = "purge_errors";
@@ -64,10 +68,50 @@ export class PurgeErrorsStrategy implements Strategy {
         }
         const cutoff = messages.length - this.afterTurns;
         return messages.map((msg, i) => {
-            if (i < cutoff && classify(msg) === ContentType.ERROR) {
-                return { ...msg, content: this.placeholder };
+            if (
+                i >= cutoff ||
+                msg.role === "system" ||
+                classify(msg) !== ContentType.ERROR
+            ) {
+                return msg;
             }
-            return msg;
+            return { ...msg, content: this.purgeContent(msg.content) };
         });
+    }
+
+    private purgeContent(content: unknown): unknown {
+        if (typeof content === "string") {
+            return this.placeholder;
+        }
+        if (Array.isArray(content)) {
+            return content.map((block) => this.purgeBlock(block));
+        }
+        if (content !== null && typeof content === "object") {
+            return this.purgeBlock(content);
+        }
+        return content;
+    }
+
+    private purgeBlock(block: unknown): unknown {
+        if (block === null || typeof block !== "object") {
+            return block;
+        }
+        const b = block as Record<string, unknown>;
+        if (!looksLikeError(extractText(b))) {
+            return block;
+        }
+        if (b.type === "text") {
+            return { ...b, text: this.placeholder };
+        }
+        if (b.type === "tool_result") {
+            const inner = b.content;
+            if (typeof inner === "string") {
+                return { ...b, content: this.placeholder };
+            }
+            if (Array.isArray(inner)) {
+                return { ...b, content: inner.map((item) => this.purgeBlock(item)) };
+            }
+        }
+        return block;
     }
 }

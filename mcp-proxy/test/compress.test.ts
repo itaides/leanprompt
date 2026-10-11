@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { Middleware } from "leanprompt";
 import { compressSamplingMessages, compressToolResult, EXT_ID } from "../src/compress.js";
+import { ExpandStore } from "../src/expand-store.js";
 
 const LONG_PROSE =
     "The quarterly report shows revenue grew twelve percent year over year. " +
@@ -62,6 +63,41 @@ describe("compressToolResult", () => {
         const original = { content: [{ type: "text", text: "short reply" }] };
         const result = compressToolResult(original, mw);
         expect(result._meta?.[EXT_ID]).toBeUndefined();
+    });
+
+    test("with a store, appends the [leanprompt] note and the ref resolves to the original", () => {
+        const mw = lowThresholdMiddleware();
+        const store = new ExpandStore();
+        const original = { content: [{ type: "text", text: LONG_PROSE }] };
+        const result = compressToolResult(original, mw, store);
+
+        // Compressed block, then exactly one appended note.
+        expect(result.content.length).toBe(2);
+        const note = result.content[1] as { type: string; text: string };
+        expect(note.type).toBe("text");
+        expect(note.text).toContain("[leanprompt]");
+        expect(note.text).toContain("leanprompt_expand");
+
+        const ref = note.text.match(/ref "(lp-[^"]+)"/)?.[1];
+        expect(ref).toBeDefined();
+        const entry = store.get(ref!);
+        expect(entry?.content).toEqual(original.content);
+        const meta = result._meta![EXT_ID] as { expandRef?: string };
+        expect(meta.expandRef).toBe(ref);
+    });
+
+    test("uncompressed result gets no note and stores nothing", () => {
+        const mw = new Middleware({
+            mode: "on",
+            routing: { prose: "extract" },
+            trigger: { thresholdTokens: 2000 },
+        });
+        const store = new ExpandStore();
+        const original = { content: [{ type: "text", text: "short reply" }] };
+        const result = compressToolResult(original, mw, store);
+        expect(result.content.length).toBe(1);
+        expect(result._meta).toBeUndefined();
+        expect(store.size).toBe(0);
     });
 });
 

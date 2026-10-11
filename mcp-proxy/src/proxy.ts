@@ -82,6 +82,8 @@ import { Middleware } from "leanprompt";
 
 import { compressSamplingMessages, compressToolResult, EXT_ID } from "./compress.js";
 import type { SamplingMessageLike, ToolResultLike } from "./compress.js";
+import { ExpandStore } from "./expand-store.js";
+import type { ExpandStoreOptions } from "./expand-store.js";
 import { VERSION } from "./version.js";
 
 export interface ProxyConfig {
@@ -92,6 +94,13 @@ export interface ProxyConfig {
     thresholdTokens: number;
     /** Extract keep-ratio for prose that clears the threshold. */
     keepRatio: number;
+    /** Original-content store behind the leanprompt_expand tool; on by default. */
+    expand?: ExpandOptions;
+}
+
+export interface ExpandOptions extends Partial<ExpandStoreOptions> {
+    /** false disables the store, the tool, and the annotation entirely. */
+    enabled?: boolean;
 }
 
 export interface CreateProxyOptions {
@@ -101,6 +110,7 @@ export interface CreateProxyOptions {
     downstreamTransport: Transport;
     thresholdTokens: number;
     keepRatio: number;
+    expand?: ExpandOptions;
 }
 
 export interface ProxyHandles {
@@ -151,6 +161,19 @@ const DOWNSTREAM_NOTIFICATIONS: ReadonlyArray<AnyObjectSchema> = [
     RootsListChangedNotificationSchema,
 ];
 
+const EXPAND_TOOL = {
+    name: "leanprompt_expand",
+    description:
+        "Return the original, uncompressed output of a tool result that " +
+        "leanprompt compressed. Pass the ref from the [leanprompt] note at " +
+        "the end of that result.",
+    inputSchema: {
+        type: "object" as const,
+        properties: { ref: { type: "string" as const } },
+        required: ["ref"],
+    },
+};
+
 /**
  * Wire a downstream Server to an upstream Client over the given transports.
  * Returns once both sides are connected and the downstream handshake data
@@ -172,6 +195,12 @@ export async function createProxy(opts: CreateProxyOptions): Promise<ProxyHandle
     // Sampling messages ARE a real conversation history, so the default
     // recency protection is the correct, intentional behavior here.
     const samplingMw = new Middleware(baseConfig);
+
+    // The expand store keeps the original content of every compressed
+    // result so the leanprompt_expand tool can return it verbatim. On by
+    // default; --no-expand disables store, tool, and annotation together.
+    const expandStore =
+        (opts.expand?.enabled ?? true) ? new ExpandStore(opts.expand) : undefined;
 
     // We are the client from the real server's point of view. Declaring
     // `sampling` tells that server it's allowed to ask us for completions;
@@ -196,6 +225,16 @@ export async function createProxy(opts: CreateProxyOptions): Promise<ProxyHandle
         {
             capabilities: {
                 ...upstreamCaps,
+                // Always advertise tools when expand is on: even a
+                // tools-less upstream still exposes leanprompt_expand.
+                ...(expandStore === undefined && upstreamCaps.tools === undefined
+                    ? {}
+                    : {
+                          tools: {
+                              ...upstreamCaps.tools,
+                              listChanged: upstreamCaps.tools?.listChanged ?? false,
+                          },
+                      }),
                 tasks: {
                     ...upstreamCaps.tasks,
                     requests: {
@@ -209,10 +248,51 @@ export async function createProxy(opts: CreateProxyOptions): Promise<ProxyHandle
         },
     );
 
-    if (upstreamCaps.tools) {
-        downstream.setRequestHandler(ListToolsRequestSchema, () => upstream.listTools());
+    if (upstreamCaps.tools || expandStore !== undefined) {
+        downstream.setRequestHandler(ListToolsRequestSchema, async () => {
+            const listed = upstreamCaps.tools
+                ? ((await upstream.listTools()) as { tools: unknown[] })
+                : { tools: [] as unknown[] };
+            if (expandStore === undefined) {
+                return listed;
+            }
+            return { ...listed, tools: [...listed.tools, EXPAND_TOOL] };
+        });
 
         downstream.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+            // Answered locally: the original content of a compressed result,
+            // verbatim — never recompressed, never annotated.
+            if (expandStore !== undefined && request.params.name === EXPAND_TOOL.name) {
+                const ref = (request.params.arguments as { ref?: unknown } | undefined)?.ref;
+                const entry = typeof ref === "string" ? expandStore.get(ref) : undefined;
+                if (entry === undefined) {
+                    return {
+                        isError: true,
+                        content: [
+                            {
+                                type: "text" as const,
+                                text:
+                                    `leanprompt_expand: unknown or expired ref ` +
+                                    `${String(ref)}. The original output is no ` +
+                                    `longer available; re-run the original tool call.`,
+                            },
+                        ],
+                    };
+                }
+                return { content: entry.content };
+            }
+            if (!upstreamCaps.tools) {
+                return {
+                    isError: true,
+                    content: [
+                        {
+                            type: "text" as const,
+                            text: "leanprompt: upstream exposes no tools",
+                        },
+                    ],
+                };
+            }
+
             // params — including _meta.progressToken — is forwarded verbatim
             // so upstream progress notifications correlate back to the
             // downstream client's token.
@@ -230,7 +310,7 @@ export async function createProxy(opts: CreateProxyOptions): Promise<ProxyHandle
             if ("task" in result && result.task) {
                 return result;
             }
-            return compressToolResult(result, toolResultMw);
+            return compressToolResult(result, toolResultMw, expandStore);
         });
     }
 
@@ -261,7 +341,7 @@ export async function createProxy(opts: CreateProxyOptions): Promise<ProxyHandle
         if (!Array.isArray(result.content)) {
             return result;
         }
-        return compressToolResult(result, toolResultMw);
+        return compressToolResult(result, toolResultMw, expandStore);
     });
 
     // Everything else the upstream supports: verbatim pass-through. No

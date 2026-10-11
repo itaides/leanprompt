@@ -89,10 +89,12 @@ interface Rig {
     upstream: FakeUpstream;
 }
 
-async function makeRig(): Promise<Rig> {
-    const upstream = makeFakeUpstream();
+async function makeRig(
+    upstream: FakeUpstream | Server = makeFakeUpstream(),
+): Promise<Rig> {
+    const server = upstream instanceof Server ? upstream : upstream.server;
     const [upstreamServerSide, proxyClientSide] = InMemoryTransport.createLinkedPair();
-    await upstream.server.connect(upstreamServerSide);
+    await server.connect(upstreamServerSide);
 
     const [proxyServerSide, clientSide] = InMemoryTransport.createLinkedPair();
     const proxy = await createProxy({
@@ -104,7 +106,7 @@ async function makeRig(): Promise<Rig> {
 
     const client = new Client({ name: "test-client", version: "0.0.1" }, { capabilities: {} });
     await client.connect(clientSide);
-    return { client, proxy, upstream };
+    return { client, proxy, upstream: upstream as FakeUpstream };
 }
 
 describe("mcp-proxy e2e (in-memory)", () => {
@@ -152,6 +154,52 @@ describe("mcp-proxy e2e (in-memory)", () => {
         await upstream.server.sendResourceListChanged();
         await new Promise((r) => setTimeout(r, 20));
         expect(seen).toBe(1);
+    });
+
+    test("leanprompt_expand: listed, returns the original verbatim, bogus ref errors", async () => {
+        const { client } = await makeRig();
+
+        const tools = await client.listTools();
+        const names = tools.tools.map((t) => t.name);
+        expect(names).toContain("big");
+        expect(names).toContain("leanprompt_expand");
+
+        // Compressed result carries the note with a resolvable ref.
+        const big = await client.callTool({ name: "big", arguments: {} });
+        const note = big.content[big.content.length - 1] as { type: string; text: string };
+        expect(note.type).toBe("text");
+        expect(note.text).toContain("[leanprompt]");
+        const ref = note.text.match(/ref "(lp-[^"]+)"/)?.[1];
+        expect(ref).toBeDefined();
+
+        // Expand returns the exact original content array, unannotated.
+        const expanded = await client.callTool({ name: "leanprompt_expand", arguments: { ref } });
+        expect(expanded.isError).not.toBe(true);
+        expect(expanded.content).toEqual([{ type: "text", text: LONG_PROSE }]);
+
+        const bogus = await client.callTool({
+            name: "leanprompt_expand",
+            arguments: { ref: "lp-00000000" },
+        });
+        expect(bogus.isError).toBe(true);
+        expect((bogus.content[0] as { text: string }).text).toContain("unknown or expired ref");
+    });
+
+    test("a tools-less upstream still exposes leanprompt_expand", async () => {
+        const bare = new Server(
+            { name: "bare-upstream", version: "1.0.0" },
+            { capabilities: { logging: {} } },
+        );
+        const { client } = await makeRig(bare);
+
+        const caps = client.getServerCapabilities()!;
+        expect(caps.tools).toBeDefined();
+        const tools = await client.listTools();
+        expect(tools.tools.map((t) => t.name)).toEqual(["leanprompt_expand"]);
+
+        const miss = await client.callTool({ name: "anything", arguments: {} });
+        expect(miss.isError).toBe(true);
+        expect((miss.content[0] as { text: string }).text).toContain("no tools");
     });
 
     test("logging/setLevel forwarded to upstream", async () => {

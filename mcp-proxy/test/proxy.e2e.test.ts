@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
     CallToolRequestSchema,
     EmptyResultSchema,
@@ -210,5 +215,83 @@ describe("mcp-proxy e2e (in-memory)", () => {
         );
         expect(out).toEqual({});
         expect(upstream.lastLogLevel()).toBe("debug");
+    });
+});
+
+interface HttpUpstreamRig {
+    url: string;
+    /** The X-Test-Auth header of the most recent request that reached upstream. */
+    lastAuthHeader: () => string | undefined;
+    close: () => Promise<void>;
+}
+
+/**
+ * The fake upstream served over real Streamable HTTP on an ephemeral port —
+ * a single stateful session is enough for the one client each test runs.
+ */
+async function makeHttpUpstreamRig(): Promise<HttpUpstreamRig> {
+    const upstream = makeFakeUpstream();
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
+    await upstream.server.connect(transport);
+
+    let lastAuthHeader: string | undefined;
+    const httpServer = createServer((req, res) => {
+        const auth = req.headers["x-test-auth"];
+        lastAuthHeader = Array.isArray(auth) ? auth[0] : auth;
+        void transport.handleRequest(req, res);
+    });
+    await new Promise<void>((resolve) => httpServer.listen(0, "127.0.0.1", resolve));
+    const { port } = httpServer.address() as { port: number };
+
+    return {
+        url: `http://127.0.0.1:${port}/mcp`,
+        lastAuthHeader: () => lastAuthHeader,
+        close: async () => {
+            await upstream.server.close();
+            if (httpServer.listening) {
+                httpServer.closeAllConnections();
+                await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+            }
+        },
+    };
+}
+
+describe("mcp-proxy e2e (remote upstream over streamable http)", () => {
+    // The whole topology for real: test client --stdio--> spawned proxy
+    // process (--url/--header/--threshold) --http--> upstream MCP server.
+    test("spawned `--url` proxy compresses tool results and forwards --header", async () => {
+        const http = await makeHttpUpstreamRig();
+        const cliPath = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
+
+        const client = new Client({ name: "test-client", version: "0.0.1" }, { capabilities: {} });
+        const transport = new StdioClientTransport({
+            command: process.execPath,
+            args: [
+                cliPath,
+                "--url", http.url,
+                "--header", "X-Test-Auth: token-123",
+                "--threshold", "5",
+                "--keep-ratio", "0.5",
+            ],
+            stderr: "inherit",
+        });
+
+        try {
+            await client.connect(transport);
+
+            const big = await client.callTool({ name: "big", arguments: {} });
+            const block = big.content[0] as { type: string; text: string };
+            expect(block.text.length).toBeLessThan(LONG_PROSE.length);
+            expect((big._meta as Record<string, { tokensSaved: number }>)[EXT_ID].tokensSaved).toBeGreaterThan(0);
+
+            const small = await client.callTool({ name: "small", arguments: {} });
+            expect((small.content[0] as { text: string }).text).toBe("done");
+            expect(small._meta?.[EXT_ID]).toBeUndefined();
+
+            expect(http.lastAuthHeader()).toBe("token-123");
+        } finally {
+            await client.close();
+            await http.close();
+        }
     });
 });

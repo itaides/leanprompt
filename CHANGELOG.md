@@ -8,6 +8,13 @@ via its own `go/vX.Y.Z` git tag.
 
 ## [Unreleased]
 
+**mcp-proxy** — new remote upstream mode: `leanprompt-mcp-proxy --url
+<http(s)://endpoint>` fronts a Streamable HTTP MCP server (e.g. a hosted
+gateway) instead of spawning a stdio command. `--header "Name: value"`
+(repeatable) adds HTTP headers such as `Authorization` to every upstream
+request; `--url` and `-- <command>` are mutually exclusive, and compression
+flags behave identically in both modes.
+
 ### Changed
 - Extract marker matching now requires a word-start boundary (`do not` no
   longer fires inside `pseudo notation`, `never ` inside `whenever `,

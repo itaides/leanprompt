@@ -536,7 +536,7 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
     // Prohibitions are kept unconditionally, charged to the budget up front.
     for s in &scored {
         let lower = ascii_lower(&s.text);
-        if PROHIBITION_MARKERS.iter().any(|m| lower.contains(m)) {
+        if has_marker_at_word_start(&lower, PROHIBITION_MARKERS) {
             kept[s.index] = true;
             kept_tokens += s.tokens;
         }
@@ -628,7 +628,7 @@ fn score_sentence(
     if index == 0 || index == sentence_count - 1 {
         score += BOOST_POSITION;
     }
-    if CONSTRAINT_MARKERS.iter().any(|m| lower.contains(m)) {
+    if has_marker_at_word_start(&lower, CONSTRAINT_MARKERS) {
         score += BOOST_IMPERATIVE;
     }
     if FILLER_OPENERS.iter().any(|f| lower.starts_with(f)) {
@@ -671,15 +671,50 @@ fn has_non_initial_capitalized_word(text: &str) -> bool {
     false
 }
 
+/// Marker match with a word-start boundary: `m` matches iff it occurs at
+/// a byte index whose preceding char is not a word char (or at index 0) —
+/// "do not" inside "pseudo notation" no longer fires. No trailing check;
+/// several markers already end with a space. Markers are ASCII, so match
+/// positions are always char boundaries.
+fn has_marker_at_word_start(lower: &str, markers: &[&str]) -> bool {
+    for m in markers {
+        let mut from = 0;
+        while let Some(off) = lower[from..].find(m) {
+            let p = from + off;
+            if p == 0
+                || !lower[..p]
+                    .chars()
+                    .next_back()
+                    .is_some_and(|c| is_word_char(c as u32))
+            {
+                return true;
+            }
+            from = p + 1;
+        }
+    }
+    false
+}
+
+/// Quoted span of ≥ 3 chars between matching " ' or ` quotes, where the
+/// opener is at index 0 or preceded by a non-word char and the closer is at
+/// end-of-text or followed by a non-word char — apostrophes inside words
+/// (it's, don't) never count.
 fn has_quoted_span(text: &str) -> bool {
     let chars: Vec<char> = text.chars().collect();
     for q in ['"', '\'', '`'] {
-        let Some(first) = chars.iter().position(|&c| c == q) else {
+        let first = chars
+            .iter()
+            .enumerate()
+            .find(|&(i, &c)| c == q && (i == 0 || !is_word_char(chars[i - 1] as u32)))
+            .map(|(i, _)| i);
+        let Some(first) = first else {
             continue;
         };
-        if let Some(offset) = chars[first + 1..].iter().position(|&c| c == q) {
-            // second = first + 1 + offset; gap = second - first
-            if offset + 1 > 3 {
+        for j in (first + 1)..chars.len() {
+            if chars[j] == q
+                && j - first > 3
+                && (j + 1 == chars.len() || !is_word_char(chars[j + 1] as u32))
+            {
                 return true;
             }
         }

@@ -6,6 +6,7 @@ package leanprompt
 import (
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -444,12 +445,9 @@ func selectSentences(sentences []sentence, ratioMillis int64) string {
 	// Prohibitions are kept unconditionally, charged to the budget up front.
 	for _, s := range scored {
 		lower := asciiLower(s.text)
-		for _, m := range prohibitionMarkers {
-			if strings.Contains(lower, m) {
-				kept[s.index] = true
-				keptTokens += s.tokens
-				break
-			}
+		if hasMarkerAtWordStart(lower, prohibitionMarkers) {
+			kept[s.index] = true
+			keptTokens += s.tokens
 		}
 	}
 
@@ -554,11 +552,8 @@ func scoreSentence(
 	if index == 0 || index == sentenceCount-1 {
 		score += boostPosition
 	}
-	for _, m := range constraintMarkers {
-		if strings.Contains(lower, m) {
-			score += boostImperative
-			break
-		}
+	if hasMarkerAtWordStart(lower, constraintMarkers) {
+		score += boostImperative
 	}
 	for _, f := range fillerOpeners {
 		if strings.HasPrefix(lower, f) {
@@ -597,12 +592,39 @@ func hasNonInitialCapitalizedWord(text string) bool {
 	return false
 }
 
+// hasMarkerAtWordStart: a marker matches iff it occurs at a byte index
+// whose preceding rune is not a word char (or at index 0) — "do not"
+// inside "pseudo notation" no longer fires. No trailing check; several
+// markers already end with a space. Markers are ASCII, so match positions
+// are always rune boundaries.
+func hasMarkerAtWordStart(lower string, markers []string) bool {
+	for _, m := range markers {
+		for from := 0; ; {
+			off := strings.Index(lower[from:], m)
+			if off < 0 {
+				break
+			}
+			p := from + off
+			prev, _ := utf8.DecodeLastRuneInString(lower[:p])
+			if p == 0 || !isWordChar(prev) {
+				return true
+			}
+			from = p + 1
+		}
+	}
+	return false
+}
+
+// hasQuotedSpan: a quoted span of >= 3 chars between matching " ' or `
+// quotes, where the opener is at index 0 or preceded by a non-word rune
+// and the closer is at end-of-text or followed by a non-word rune —
+// apostrophes inside words (it's, don't) never count.
 func hasQuotedSpan(text string) bool {
 	chars := []rune(text)
 	for _, q := range []rune{'"', '\'', '`'} {
 		first := -1
 		for i, c := range chars {
-			if c == q {
+			if c == q && (i == 0 || !isWordChar(chars[i-1])) {
 				first = i
 				break
 			}
@@ -611,11 +633,8 @@ func hasQuotedSpan(text string) bool {
 			continue
 		}
 		for j := first + 1; j < len(chars); j++ {
-			if chars[j] == q {
-				if j-first > 3 {
-					return true
-				}
-				break
+			if chars[j] == q && j-first > 3 && (j+1 == len(chars) || !isWordChar(chars[j+1])) {
+				return true
 			}
 		}
 	}

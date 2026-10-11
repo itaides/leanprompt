@@ -388,5 +388,87 @@
       }
     ],
     "selected": "Latency stayed within the expected bounds for the entire window.\n\nThe final cutover required a brief write pause of under two minutes.\nMonitoring dashboards confirmed no elevated error rates afterwards."
+  },
+  {
+    "name": "apostrophes-500",
+    "text": "We don't usually recommend restarting the service while it's under load. It's a safer path to drain the node first, and we're confident it's quick. The runbook calls this the 'drain before restart' procedure for a reason. In practice the failover takes under a minute and clients don't notice. If the drain stalls, the on-call engineer can force it with the admin tool.",
+    "ratioMillis": 500,
+    "sentences": [
+      {
+        "text": "We don't usually recommend restarting the service while it's under load.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "It's a safer path to drain the node first, and we're confident it's quick.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "The runbook calls this the 'drain before restart' procedure for a reason.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "In practice the failover takes under a minute and clients don't notice.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "If the drain stalls, the on-call engineer can force it with the admin tool.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      }
+    ],
+    "selected": "We don't usually recommend restarting the service while it's under load. In practice the failover takes under a minute and clients don't notice. If the drain stalls, the on-call engineer can force it with the admin tool."
+  },
+  {
+    "name": "marker-boundaries-450",
+    "text": "The pseudo notation used in the draft is loosely defined. Whenever possible the loader defers initialization. Service traffic flows through hallways of proxy tiers. Logs commonly accumulate in the scratch partition. Do not restart the primary while replicas are syncing. The metrics endpoint reports queue depth per shard.",
+    "ratioMillis": 450,
+    "sentences": [
+      {
+        "text": "The pseudo notation used in the draft is loosely defined.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "Whenever possible the loader defers initialization.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "Service traffic flows through hallways of proxy tiers.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "Logs commonly accumulate in the scratch partition.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "Do not restart the primary while replicas are syncing.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      },
+      {
+        "text": "The metrics endpoint reports queue depth per shard.",
+        "listItem": false,
+        "line": 0,
+        "paragraphBreak": false
+      }
+    ],
+    "selected": "Whenever possible the loader defers initialization. Do not restart the primary while replicas are syncing. The metrics endpoint reports queue depth per shard."
   }
 ]

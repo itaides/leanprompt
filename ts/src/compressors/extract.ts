@@ -608,7 +608,7 @@ export function selectSentences(sentences: Sentence[], ratioMillis: number): str
     // Prohibitions are kept unconditionally, charged to the budget up front.
     for (const s of scored) {
         const lower = asciiLower(s.text);
-        if (PROHIBITION_MARKERS.some((m) => lower.includes(m))) {
+        if (hasMarkerAtWordStart(lower, PROHIBITION_MARKERS)) {
             keep(s);
         }
     }
@@ -709,7 +709,7 @@ function scoreSentence(
     }
     // Constraints/imperatives ("Do not touch prod.") are short and score
     // worst under rarity statistics, yet are the costliest to lose.
-    if (CONSTRAINT_MARKERS.some((m) => lower.includes(m))) {
+    if (hasMarkerAtWordStart(lower, CONSTRAINT_MARKERS)) {
         score += BOOST_IMPERATIVE;
     }
     if (FILLER_OPENERS.some((f) => lower.startsWith(f))) {
@@ -760,16 +760,62 @@ function hasNonInitialCapitalizedWord(text: string): boolean {
     return false;
 }
 
-/** A quoted span of ≥ 3 code points between matching " ' or ` quotes. */
-function hasQuotedSpan(text: string): boolean {
+/** Code point ending at text[i-1] (decodes surrogate pairs). */
+function codePointBefore(text: string, i: number): number {
+    const lo = text.charCodeAt(i - 1);
+    if (lo >= 0xdc00 && lo <= 0xdfff && i >= 2) {
+        const hi = text.charCodeAt(i - 2);
+        if (hi >= 0xd800 && hi <= 0xdbff) {
+            return (hi - 0xd800) * 0x400 + (lo - 0xdc00) + 0x10000;
+        }
+    }
+    return lo;
+}
+
+/**
+ * Marker match with a word-start boundary: `m` matches lowercased text
+ * iff it occurs at an index whose preceding code point is not a word char
+ * (or at index 0). Prevents "do not" inside "pseudo notation" or "never "
+ * inside "whenever " from firing. No trailing check — several markers end
+ * with a space already. Markers are ASCII, so match positions always land
+ * on code-point boundaries.
+ */
+export function hasMarkerAtWordStart(lower: string, markers: readonly string[]): boolean {
+    for (const m of markers) {
+        for (let p = lower.indexOf(m); p !== -1; p = lower.indexOf(m, p + 1)) {
+            if (p === 0 || !isWordChar(codePointBefore(lower, p))) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * A quoted span of ≥ 3 code points between matching " ' or ` quotes, where
+ * the opener is at index 0 or preceded by a non-word code point and the
+ * closer is at end-of-text or followed by a non-word code point — so
+ * apostrophes inside words (it's, don't) never count.
+ */
+export function hasQuotedSpan(text: string): boolean {
     for (const q of ['"', "'", "`"]) {
-        const first = text.indexOf(q);
+        let first = -1;
+        for (let i = text.indexOf(q); i !== -1; i = text.indexOf(q, i + 1)) {
+            if (i === 0 || !isWordChar(codePointBefore(text, i))) {
+                first = i;
+                break;
+            }
+        }
         if (first === -1) {
             continue;
         }
-        const second = text.indexOf(q, first + 1);
-        if (second !== -1 && second - first > 3) {
-            return true;
+        for (let i = text.indexOf(q, first + 1); i !== -1; i = text.indexOf(q, i + 1)) {
+            if (
+                i - first > 3 &&
+                (i === text.length - 1 || !isWordChar(text.codePointAt(i + 1)!))
+            ) {
+                return true;
+            }
         }
     }
     return false;

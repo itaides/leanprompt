@@ -25,9 +25,9 @@
       "totalMessages": 7,
       "inputTokens": 1555,
       "extract": {
-        "outputTokens": 958,
-        "ratio": 0.6160771704180065,
-        "termCoverage": 0.6955810147299509,
+        "outputTokens": 1025,
+        "ratio": 0.6591639871382636,
+        "termCoverage": 0.7397708674304418,
         "digitCoverage": 0.7368421052631579
       },
       "baseline": {

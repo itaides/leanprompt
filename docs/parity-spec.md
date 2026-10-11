@@ -156,10 +156,18 @@ Scoring (per sentence; `words` = asciiLower word tokens):
 - base = `floor(sum(termWeight over non-stopword words) * 1000 / len(words))`.
 - boosts: +350 any ASCII digit; +200 capitalized non-initial word (ASCII
   `[A-Z]` start + `[a-z]` second letter); +200 quoted span (same quote char
-  `"`/`'`/`` ` `` twice, gap > 3); +300 identifier token (alnum on both sides
-  of `_`, `/`, `-` or `.`); +250 first or last sentence; +400 constraint
-  marker substring; −400 filler opener prefix. Marker lists are frozen in the
-  reference implementation.
+  `"`/`'`/`` ` `` twice with gap > 3, the opener at index 0 or preceded by
+  a non-word code point, the closer at end-of-text or followed by a
+  non-word code point — apostrophes inside words never count); +300
+  identifier token (alnum on both sides of `_`, `/`, `-` or `.`); +250
+  first or last sentence; +400 constraint marker; −400 filler opener
+  prefix. Marker lists are frozen in the reference implementation.
+- **Marker matching** (prohibition and constraint lists): a marker `m`
+  matches lowercased text `t` iff some index `p` satisfies
+  `t.startsWith(m, p)` AND (`p == 0` OR the code point ending at `p - 1`
+  is not a word char, §2 `isWordChar`). No trailing boundary check —
+  several markers already end with a space. All markers are ASCII, so a
+  match position always lands on a code-point boundary.
 - Sentences containing a prohibition marker (`do not`, `don't`, `must not`,
   `never `) are kept **unconditionally** (before ranked selection, charged to
   the budget).

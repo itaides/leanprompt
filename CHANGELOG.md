@@ -8,6 +8,14 @@ via its own `go/vX.Y.Z` git tag.
 
 ## [Unreleased]
 
+### Changed
+- Extract marker matching now requires a word-start boundary (`do not` no
+  longer fires inside `pseudo notation`, `never ` inside `whenever `,
+  `always` inside `hallways`), and the quoted-span boost requires the
+  opener to start at a word boundary and the closer to end at one, so
+  apostrophes inside words (`don't`, `it's`) no longer score as quoted
+  phrases.
+
 **mcp-proxy 0.2.0** — the proxy is now transparent in both directions: the
 downstream server advertises whatever capabilities the upstream server
 reports (plus `tasks` and the `io.leanprompt/compression-stats`

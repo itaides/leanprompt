@@ -92,6 +92,23 @@ const INCIDENT_SUMMARY = [
     "Restoring the previous limit brought hit rates back to normal within an hour.",
 ].join(" ");
 
+const APOSTROPHE_PROSE = [
+    "We don't usually recommend restarting the service while it's under load.",
+    "It's a safer path to drain the node first, and we're confident it's quick.",
+    "The runbook calls this the 'drain before restart' procedure for a reason.",
+    "In practice the failover takes under a minute and clients don't notice.",
+    "If the drain stalls, the on-call engineer can force it with the admin tool.",
+].join(" ");
+
+const MARKER_BOUNDARY_PROSE = [
+    "The pseudo notation used in the draft is loosely defined.",
+    "Whenever possible the loader defers initialization.",
+    "Service traffic flows through hallways of proxy tiers.",
+    "Logs commonly accumulate in the scratch partition.",
+    "Do not restart the primary while replicas are syncing.",
+    "The metrics endpoint reports queue depth per shard.",
+].join(" ");
+
 const CODE_TEXT = "import os\nfrom sys import path\n\ndef main():\n    return path";
 const FENCED_TEXT = "Here is the fix:\n```py\nprint('hi')\n```";
 const ERROR_TEXT = "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: nope";
@@ -168,6 +185,8 @@ const EXTRACT_CASES: Array<{ name: string; text: string; ratioMillis: number }> 
     { name: "listy-500", text: LISTY_TEXT, ratioMillis: 500 },
     { name: "release-checklist-500", text: RELEASE_CHECKLIST, ratioMillis: 500 },
     { name: "multi-paragraph-500", text: MULTI_PARAGRAPH, ratioMillis: 500 },
+    { name: "apostrophes-500", text: APOSTROPHE_PROSE, ratioMillis: 500 },
+    { name: "marker-boundaries-450", text: MARKER_BOUNDARY_PROSE, ratioMillis: 450 },
 ];
 
 // ------------------------------------------------------------------------ //

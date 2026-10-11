@@ -3,6 +3,8 @@ import {
     asciiLower,
     bitLength,
     Extract,
+    hasMarkerAtWordStart,
+    hasQuotedSpan,
     looksStructural,
     mostlyAscii,
     segmentSentences,
@@ -221,6 +223,49 @@ describe("selectSentences", () => {
             }
         }
         expect(compressed).toContain("\n\n");
+    });
+
+    test("marker word boundary: embedded lookalikes are not kept unconditionally", () => {
+        const text = [
+            "The pseudo notation used in the draft is loosely defined and rarely referenced again.",
+            "Whenever possible the loader defers initialization of secondary caches.",
+            "Do not restart the primary while replicas are still syncing their journals.",
+        ].join(" ");
+        // A starvation budget: only unconditional prohibition keeps survive.
+        const out = selectSentences(segmentSentences(text), 1);
+        expect(out).toContain("Do not restart the primary");
+        expect(out).not.toContain("pseudo notation");
+        expect(out).not.toContain("Whenever possible");
+    });
+
+    test("marker word boundary: real markers still match mid-sentence", () => {
+        const lower = asciiLower("The rule says never restart during a deploy window.");
+        expect(hasMarkerAtWordStart(lower, ["never "])).toBe(true);
+        expect(hasMarkerAtWordStart(asciiLower("whenever possible"), ["never "])).toBe(false);
+        expect(hasMarkerAtWordStart(asciiLower("pseudo notation"), ["do not"])).toBe(false);
+        expect(hasMarkerAtWordStart(asciiLower("hallways and doors"), ["always"])).toBe(false);
+        expect(hasMarkerAtWordStart(asciiLower("commonly used tools"), ["only "])).toBe(false);
+        expect(hasMarkerAtWordStart(asciiLower("only the primary"), ["only "])).toBe(true);
+    });
+
+    test("quoted span: apostrophes inside words do not open or close a span", () => {
+        expect(hasQuotedSpan("We don't ship when it's broken and we're sure of it.")).toBe(false);
+        expect(hasQuotedSpan("The runbook calls it the 'drain first' procedure.")).toBe(true);
+        expect(hasQuotedSpan(`Use the \`dry-run\` flag before applying.`)).toBe(true);
+        expect(hasQuotedSpan('He said "do not deploy" twice in the meeting.')).toBe(true);
+        // An opener without a valid closer still fails.
+        expect(hasQuotedSpan("it's the only 'safe path we have.")).toBe(false);
+    });
+
+    test("quoted span boost decides an otherwise-tied ranking", () => {
+        // Same token multiset in every sentence -> identical base score; the
+        // +200 quoted-span boost is the only tiebreaker. At a starvation
+        // budget exactly one sentence survives.
+        const s0 = "The quick brown fox jumps over lazy dogs daily.";
+        const plain = "Over lazy dogs the quick brown fox jumps daily.";
+        const quoted = "Over lazy dogs the 'quick brown fox' jumps daily.";
+        expect(selectSentences(segmentSentences([s0, plain].join(" ")), 1)).toBe(s0);
+        expect(selectSentences(segmentSentences([s0, quoted].join(" ")), 1)).toBe(quoted);
     });
 });
 

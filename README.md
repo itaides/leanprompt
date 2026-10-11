@@ -209,6 +209,8 @@ docs/       parity-spec.md — the normative cross-language spec
 CONFIG.md   every configuration option, all three languages
 ROADMAP.md  planned support for OpenAI Codex CLI
 CHANGELOG.md notable changes per release
+CONTRIBUTING.md contributor setup, checks, and PR rules
+AGENTS.md   agent-facing repo guide: invariants, checks, conventions
 ```
 
 ## Roadmap
@@ -221,6 +223,14 @@ See [ROADMAP.md](ROADMAP.md) for what's still planned (OpenAI Codex CLI).
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for notable changes per release.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks, and the PR process,
+and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards. The one
+rule that shapes most contributions: the three SDKs produce byte-identical
+output, so a change to compression behavior updates the spec, regenerates the
+golden vectors, and ports to all three languages in the same PR.
 
 ## Security
 

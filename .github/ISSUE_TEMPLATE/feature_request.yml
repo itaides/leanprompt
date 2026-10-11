@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest an enhancement that is not a compression-behavior change
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For changes to compression output, use the Behavior Change Proposal instead -- those affect the parity invariant.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this solve for you?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would like to see.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime_dependency
+    attributes:
+      label: Does this add a runtime dependency?
+      description: The three SDKs must stay zero-dependency. See CONTRIBUTING.md -> "The zero-dependency invariant".
+      options:
+        - "No"
+        - "Yes -- explain in the proposal"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why you rejected them.
+    validations:
+      required: false

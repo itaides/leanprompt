@@ -1,0 +1,80 @@
+name: Bug Report
+description: Report a bug in leanprompt
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill out the sections below so we can reproduce and fix it.
+
+  - type: dropdown
+    id: sdk
+    attributes:
+      label: SDK
+      description: Which SDK does this affect?
+      options:
+        - TypeScript
+        - Rust
+        - Go
+        - mcp-proxy
+        - Multiple
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Package version or git SHA you reproduced on.
+      placeholder: 0.2.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest input that triggers the bug.
+      placeholder: |
+        The exact `messages` input and config (as JSON), plus the entry
+        point used, e.g. `Middleware.compressMessages`, `leanpromptFetch`,
+        or `wrap`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_vs_actual
+    attributes:
+      label: Expected vs actual
+      description: The output you expected, and the output you got.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproduces_in
+    attributes:
+      label: Reproduces in
+      description: Does the same input produce the same wrong output in the other SDKs? (All three are meant to be byte-identical.)
+      options:
+        - One SDK only
+        - All three
+        - Not checked
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / output
+      description: Paste any relevant error messages or stack traces.
+      render: shell
+    validations:
+      required: false

@@ -6,9 +6,16 @@ All notable changes to this project are documented here. Format follows
 in lockstep (enforced by CI); Go has no manifest version and is released
 via its own `go/vX.Y.Z` git tag.
 
-## [Unreleased]
+## [0.3.0] — 2026-10-11
+
+This is a behavior-changing minor release: the middleware pipeline order,
+Extract output shape, SelfLLM block handling, and RepeatTracker semantics
+all changed, and the parity vectors were regenerated accordingly. Output
+remains byte-identical across the TypeScript, Rust, and Go ports — see the
+sections below for each change.
 
 ### Fixed
+- ts `VERSION` constant had drifted to 0.1.0; now checked by CI.
 - `DedupStrategy` no longer drops messages with tool linkage beyond
   Anthropic `tool_use`/`tool_result` blocks: `tool`/`function` roles,
   `tool_calls`, `function_call`, and single-object block content now also
@@ -65,6 +72,15 @@ via its own `go/vX.Y.Z` git tag.
 ### Added
 - `selfllm.timeoutMs` (TS): aborts the provider request after N ms.
 - `selfllm.onError` (TS): `"fallback"` | `"throw"`.
+- Contributor process: CONTRIBUTING.md, PR and issue templates, Dependabot,
+  and hardened CI (format/lint/test/build/parity gates, `cargo fmt`
+  enforcement, `mcp-proxy` in CI, version-sync checks).
+
+**mcp-proxy 0.1.1** — version is now sourced from `src/version.ts` and
+guarded by `check-version`; `prepack` refuses to publish with a `file:`
+`leanprompt` dependency; the README gained a Publishing note and a
+Limitations section listing the un-proxied MCP surface; `npm audit fix`
+cleared the reported transitive advisories.
 
 ## [0.2.0] — 2026-08-02
 

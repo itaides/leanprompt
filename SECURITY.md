@@ -11,6 +11,7 @@ its module proxy) — there is no long-term-support branch yet.
 | TypeScript (`leanprompt` on npm) | latest release |
 | Rust (`leanprompt` on crates.io) | latest release |
 | Go (`github.com/itaides/leanprompt/go`) | latest release |
+| `mcp-proxy` (`leanprompt-mcp-proxy` on npm) | latest release |
 
 ## Scope
 

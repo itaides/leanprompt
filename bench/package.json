@@ -1,0 +1,9 @@
+{
+    "name": "leanprompt-bench",
+    "private": true,
+    "type": "module",
+    "description": "Dev-only dependencies for bench/ scripts. The leanprompt SDKs themselves stay zero-dependency.",
+    "devDependencies": {
+        "js-tiktoken": "1.0.21"
+    }
+}

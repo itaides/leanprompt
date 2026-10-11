@@ -71,3 +71,19 @@ are always verbatim) rather than a bug.
 
 Both are synthetic and originally written for this repo — not derived from
 any external dataset or corpus.
+
+## 4. Token-estimator calibration — `bun bench/run-tokenizer-calibration.ts`
+
+Compares `countTokens` (the zero-dependency estimator in `ts/src/tokens.ts`)
+against real tokenizers: OpenAI `o200k_base` and `cl100k_base` via
+`js-tiktoken`, and Anthropic's `/v1/messages/count_tokens` when
+`ANTHROPIC_API_KEY` is set (skipped otherwise). Runs over every corpus plus a
+fixed set of per-script probes (English, code, JSON, Cyrillic, CJK, Thai, a
+log line) and reports estimate/actual ratios.
+
+This is the one bench script with a dependency; it lives in
+`bench/package.json` so the SDKs stay zero-dependency. First run:
+`cd bench && bun install`.
+
+Writes `bench/results/tokenizer-calibration.md`. The README's "honest math"
+section quotes the current numbers from it.

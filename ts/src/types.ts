@@ -2,6 +2,8 @@
  * Shared types for the leanprompt pipeline.
  */
 
+import type { TokenCounter } from "./tokens.js";
+
 /** A single chat message in OpenAI- or Anthropic-shaped form. */
 export interface ChatMessage {
     role: string;
@@ -38,6 +40,15 @@ export interface LeanpromptConfig {
     trigger?: {
         thresholdTokens?: number;
     };
+    /**
+     * Optional token counter replacing the built-in estimator for every
+     * token number the middleware computes: the `trigger.thresholdTokens`
+     * gate, per-span guards and budgets inside compressors, and the
+     * `inputTokens`/`outputTokens` stats. Invoked once per text span with
+     * the raw text — the same spans `countTokens` sees. Must be pure and
+     * deterministic. Unset → the built-in estimator.
+     */
+    tokenCounter?: TokenCounter;
     routing?: Record<string, string>;
     extract?: {
         ratio?: number;

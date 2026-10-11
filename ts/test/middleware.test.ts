@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { SelfLLM } from "../src/compressors/selfllm.js";
 import { Middleware, registerCompressor } from "../src/middleware.js";
+import { countTokens } from "../src/tokens.js";
 
 // Mirror src/index.ts's registration so `routing: { prose: "selfllm" }`
 // resolves in this test file (index.ts is not imported here).
-registerCompressor("selfllm", (cfg) => new SelfLLM(cfg.selfllm ?? {}));
+registerCompressor("selfllm", (cfg) =>
+    new SelfLLM({ tokenCounter: cfg.tokenCounter, ...cfg.selfllm }),
+);
 
 const msg = (content: unknown, role = "user") => ({ role, content });
 
@@ -282,6 +285,73 @@ describe("Middleware strategies integration", () => {
         expect(out).toHaveLength(3); // duplicate dropped
         expect(stats.inputTokens).toBeGreaterThan(stats.outputTokens);
         expect(stats.method).toBe("verbatim");
+    });
+});
+
+describe("Middleware tokenCounter", () => {
+    test("stub counter drives gating and stats", () => {
+        let calls = 0;
+        const seen: string[] = [];
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            routing: { prose: "verbatim" },
+            protect: { lastTurns: 0 },
+            tokenCounter: (text) => {
+                calls += 1;
+                seen.push(text);
+                return text.length;
+            },
+        });
+        const input = [msg(prose("counted"))];
+        const [out, stats] = mw.compressMessages(input);
+        // Raw text spans only: gate counts the message text once, then the
+        // verbatim compressor counts it again for stats.
+        expect(calls).toBe(2);
+        expect(seen).toEqual([prose("counted"), prose("counted")]);
+        expect(stats.method).toBe("verbatim");
+        expect(stats.inputTokens).toBe(prose("counted").length);
+        expect(stats.outputTokens).toBe(prose("counted").length);
+        expect(out).toEqual(input);
+    });
+
+    test("counter shifts the below-threshold boundary", () => {
+        const text = prose("boundary");
+        const input = [msg(text)];
+        // Estimator counts ~len/4 (< len) but the stub counts len exactly,
+        // so the same threshold lands on opposite sides of the gate.
+        const threshold = text.length;
+
+        const baseline = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: threshold },
+            routing: { prose: "verbatim" },
+            protect: { lastTurns: 0 },
+        });
+        const [, baseStats] = baseline.compressMessages(input);
+        expect(baseStats.method).toBe("below-threshold");
+
+        const hooked = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: threshold },
+            routing: { prose: "verbatim" },
+            protect: { lastTurns: 0 },
+            tokenCounter: (t) => t.length,
+        });
+        const [, hookedStats] = hooked.compressMessages(input);
+        expect(hookedStats.method).toBe("verbatim");
+        expect(hookedStats.inputTokens).toBe(text.length);
+    });
+
+    test("unset counter keeps the estimator (default path unchanged)", () => {
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            routing: { prose: "verbatim" },
+            protect: { lastTurns: 0 },
+        });
+        const [, stats] = mw.compressMessages([msg("hello world")]);
+        expect(stats.inputTokens).toBe(countTokens("hello world"));
     });
 });
 

@@ -38,6 +38,56 @@ short turns from ever entering the pipeline. **Default: `2000`.**
 { mode: "on", trigger: { thresholdTokens: 500 } }
 ```
 
+## `tokenCounter` (TS) / `token_counter` (Rust) / `TokenCounter` (Go)
+
+An optional caller-supplied function that replaces the built-in estimator
+for every token number the middleware computes: the
+`trigger.thresholdTokens` gate, per-span guards and budgets inside
+compressors (Extract's 40-token span minimum and keep-ratio budget,
+SelfLLM's guards), and the `inputTokens`/`outputTokens` stats. It is
+invoked once per text span with the raw text — the same spans
+`countTokens` sees (each message's extracted text, each content block,
+each sentence during selection). It must be pure and deterministic — the
+middleware adds no caching or error handling around it. Errors propagate
+naturally (a throw/panic surfaces to the caller).
+
+Why: the estimator is a zero-dependency heuristic that **overcounts English
+by about 1.5x** versus OpenAI `o200k_base`/`cl100k_base` (measured by
+`bench/run-tokenizer-calibration.ts`, results in
+`bench/results/tokenizer-calibration.md`). Plug in a real tokenizer when
+thresholds and stats should speak provider tokens. The core stays
+zero-dependency — the counter is a function you supply, not a bundled
+tokenizer.
+
+```ts
+import { getEncoding } from "js-tiktoken";
+
+const enc = getEncoding("o200k_base");
+new Middleware({
+    mode: "on",
+    trigger: { thresholdTokens: 2000 }, // now real o200k tokens
+    routing: { prose: "extract" },
+    tokenCounter: (text) => enc.encode(text).length,
+});
+```
+```rust
+use std::sync::Arc;
+
+Config {
+    token_counter: Some(Arc::new(|s: &str| my_bpe_count(s) as i64)),
+    ..Config::default()
+}
+```
+```go
+Config{TokenCounter: func(s string) int64 { return int64(myBpeCount(s)) }}
+```
+
+Standalone compressors take the same option: `new Extract({ tokenCounter })`
+/ `new SelfLLM({ tokenCounter })` in TS (a `selfllm.tokenCounter` overrides
+the top-level one when SelfLLM is routed via `routing`),
+`Extract::with_token_counter` / `SelfLlmOptions::token_counter` in Rust,
+and `TokenCounter` fields on `Extract`/`SelfLLM`/`Verbatim` in Go.
+
 ## `routing`
 
 Maps a classifier label to a compressor by name. Any label with no entry (or

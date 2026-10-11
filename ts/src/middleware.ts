@@ -26,7 +26,8 @@ import {
     PurgeErrorsStrategy,
 } from "./strategies.js";
 import type { Strategy } from "./strategies.js";
-import { countMessageTokens } from "./tokens.js";
+import { countMessageTokens, countTokens } from "./tokens.js";
+import type { TokenCounter } from "./tokens.js";
 import { CONTENT_TYPE_VALUES, ContentType } from "./types.js";
 import type { ChatMessage, LeanpromptConfig } from "./types.js";
 
@@ -47,8 +48,15 @@ type CompressorFactory = (config: LeanpromptConfig) => Compressor;
  * keeping the core middleware import-clean of any network code.
  */
 const COMPRESSOR_FACTORIES = new Map<string, CompressorFactory>([
-    ["verbatim", () => new Verbatim()],
-    ["extract", (cfg) => new Extract({ ratio: cfg.extract?.ratio })],
+    ["verbatim", (cfg) => new Verbatim({ tokenCounter: cfg.tokenCounter })],
+    [
+        "extract",
+        (cfg) =>
+            new Extract({
+                ratio: cfg.extract?.ratio,
+                tokenCounter: cfg.tokenCounter,
+            }),
+    ],
 ]);
 
 /** Register (or override) a compressor factory by routing name. */
@@ -68,13 +76,17 @@ export class Middleware {
     private readonly protectLastTurns: number;
     private readonly router: Router;
     private readonly strategies: Strategy[];
-    private readonly protector = new Verbatim();
+    private readonly protector: Verbatim;
+    private readonly count: TokenCounter;
 
     constructor(config: LeanpromptConfig = {}) {
         this.config = config;
 
         const mode = String(config.mode ?? "off").toLowerCase();
         this.active = !["off", "passthrough", "disabled"].includes(mode);
+
+        this.count = config.tokenCounter ?? countTokens;
+        this.protector = new Verbatim({ tokenCounter: this.count });
 
         this.threshold =
             config.trigger?.thresholdTokens ?? DEFAULT_THRESHOLD_TOKENS;
@@ -147,7 +159,7 @@ export class Middleware {
             };
         }
 
-        const inputTokens = countMessageTokens(messages);
+        const inputTokens = countMessageTokens(messages, this.count);
         if (inputTokens < this.threshold) {
             return {
                 done: [
@@ -209,7 +221,10 @@ export class Middleware {
     }
 
     private buildRouter(config: LeanpromptConfig): Router {
-        const router = new Router(null, new Verbatim());
+        const router = new Router(
+            null,
+            new Verbatim({ tokenCounter: config.tokenCounter }),
+        );
         const routing = config.routing ?? {};
 
         for (const [ctypeStr, compressorName] of Object.entries(routing)) {

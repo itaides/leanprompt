@@ -15,12 +15,15 @@ type Compressor interface {
 }
 
 // Verbatim is the no-op compressor: input unchanged, honest token counts.
-type Verbatim struct{}
+// TokenCounter (nil → built-in estimator) is used for the reported counts.
+type Verbatim struct {
+	TokenCounter TokenCounter
+}
 
 func (Verbatim) Name() string { return "verbatim" }
 
-func (Verbatim) Compress(messages []Message) ([]Message, CompressionStats) {
-	tokens := CountMessageTokens(messages)
+func (v Verbatim) Compress(messages []Message) ([]Message, CompressionStats) {
+	tokens := countMessageTokensWith(messages, counterOr(v.TokenCounter))
 	return messages, statsCounted("verbatim", tokens, tokens)
 }
 
@@ -470,6 +473,13 @@ type Config struct {
 	DedupDisabled         bool
 	// PurgeErrorsAfterTurns < 0 disables purge; 0 means default (4).
 	PurgeErrorsAfterTurns int
+	// TokenCounter replaces the built-in estimator for every token number
+	// the middleware computes: the ThresholdTokens gate, per-span guards
+	// and budgets inside compressors, and the InputTokens/OutputTokens
+	// stats. Invoked once per text span with the raw text — the same spans
+	// CountTokens sees. Must be pure and deterministic. nil → built-in
+	// estimator.
+	TokenCounter TokenCounter
 }
 
 // Middleware orchestrates compression across a single request.
@@ -480,6 +490,7 @@ type Middleware struct {
 	router           *Router
 	protector        Verbatim
 	strategies       []Strategy
+	count            TokenCounter
 }
 
 func NewMiddleware(config Config) *Middleware {
@@ -502,7 +513,10 @@ func NewMiddleware(config Config) *Middleware {
 		protectLastTurns = 0
 	}
 
+	count := counterOr(config.TokenCounter)
+
 	router := NewRouter()
+	router.defaultstrategy = Verbatim{TokenCounter: config.TokenCounter}
 	for ctypeStr, compressorName := range config.Routing {
 		ctype, ok := contentTypeFrom(ctypeStr)
 		if !ok {
@@ -511,9 +525,11 @@ func NewMiddleware(config Config) *Middleware {
 		}
 		switch compressorName {
 		case "verbatim":
-			router.Register(ctype, Verbatim{})
+			router.Register(ctype, Verbatim{TokenCounter: config.TokenCounter})
 		case "extract":
-			router.Register(ctype, NewExtract(ratio))
+			ex := NewExtract(ratio)
+			ex.TokenCounter = config.TokenCounter
+			router.Register(ctype, ex)
 		default:
 			log.Printf(
 				"leanprompt: compressor %q not available; falling back to default (verbatim) for %s",
@@ -548,7 +564,9 @@ func NewMiddleware(config Config) *Middleware {
 		threshold:        threshold,
 		protectLastTurns: protectLastTurns,
 		router:           router,
+		protector:        Verbatim{TokenCounter: config.TokenCounter},
 		strategies:       strategies,
+		count:            count,
 	}
 }
 
@@ -563,7 +581,7 @@ func (m *Middleware) CompressMessages(messages []Message) ([]Message, Compressio
 
 	// Token count is taken on the ORIGINAL list so dedup/purge savings count
 	// toward tokensSaved (parity-spec §9).
-	inputTokens := CountMessageTokens(messages)
+	inputTokens := countMessageTokensWith(messages, m.count)
 	if inputTokens < m.threshold {
 		return messages, statsCounted("below-threshold", inputTokens, inputTokens)
 	}

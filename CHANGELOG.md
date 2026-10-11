@@ -16,6 +16,17 @@ request; `--url` and `-- <command>` are mutually exclusive, and compression
 flags behave identically in both modes.
 
 ### Added
+- `tokenCounter` (TS `LeanpromptConfig`), `token_counter` (Rust `Config`,
+  `SelfLlmOptions`), `TokenCounter` (Go `Config`; also on `Extract`,
+  `SelfLLM`, `Verbatim`): an opt-in caller-supplied token counter that
+  replaces the built-in estimator for every token number the middleware
+  computes — threshold gating, compressor span guards/budgets, and
+  `inputTokens`/`outputTokens` stats. Lets users plug in a real BPE
+  tokenizer (e.g. tiktoken via `js-tiktoken`) so thresholds and stats speak
+  provider tokens — the estimator overcounts English ~1.5x vs
+  `o200k`/`cl100k` (see `bench/results/tokenizer-calibration.md`). Zero-dep
+  invariant holds: the hook is a function, not a bundled tokenizer. Default
+  behavior is unchanged; no parity vectors were regenerated.
 - New `normalize` strategy — a lossless "level 0" cleanup that runs FIRST
   in the middleware pipeline (before dedup, so CRLF/ANSI variants of the
   same output dedup to one message). On by default in all three SDKs.

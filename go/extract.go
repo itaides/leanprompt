@@ -79,6 +79,13 @@ var stopwords = map[string]struct{}{
 type Extract struct {
 	// RatioMillis is the keep-ratio in integer thousandths (500 = keep half).
 	RatioMillis int64
+	// TokenCounter (nil → built-in estimator) is used for span guards, the
+	// keep-budget and stats. Must be pure and deterministic.
+	TokenCounter TokenCounter
+}
+
+func (e *Extract) count(text string) int64 {
+	return counterOr(e.TokenCounter)(text)
 }
 
 func NewExtract(ratioMillis int64) *Extract {
@@ -165,7 +172,7 @@ func (e *Extract) compressBlock(block any) (any, int64, int64) {
 			}
 			// Structural output must reach the model verbatim.
 			if looksStructural(inner) {
-				tokens := CountTokens(inner)
+				tokens := e.count(inner)
 				return block, tokens, tokens
 			}
 			compressed, in, out := e.compressText(inner)
@@ -187,13 +194,13 @@ func (e *Extract) compressBlock(block any) (any, int64, int64) {
 	text := extractText([]any{block})
 	var tokens int64
 	if text != "" {
-		tokens = CountTokens(text)
+		tokens = e.count(text)
 	}
 	return block, tokens, tokens
 }
 
 func (e *Extract) compressText(text string) (string, int64, int64) {
-	inTok := CountTokens(text)
+	inTok := e.count(text)
 	if looksStructural(text) || inTok < minSpanTokens || !mostlyASCII(text) {
 		return text, inTok, inTok
 	}
@@ -201,8 +208,8 @@ func (e *Extract) compressText(text string) (string, int64, int64) {
 	if len(sentences) < minSentencesToCompress {
 		return text, inTok, inTok
 	}
-	compressed := selectSentences(sentences, e.RatioMillis)
-	outTok := CountTokens(compressed)
+	compressed := selectSentencesWith(sentences, e.RatioMillis, e.count)
+	outTok := e.count(compressed)
 	if outTok >= inTok {
 		return text, inTok, inTok
 	}
@@ -380,6 +387,10 @@ type scoredSentence struct {
 }
 
 func selectSentences(sentences []sentence, ratioMillis int64) string {
+	return selectSentencesWith(sentences, ratioMillis, CountTokens)
+}
+
+func selectSentencesWith(sentences []sentence, ratioMillis int64, count TokenCounter) string {
 	termCounts := make(map[string]int64)
 	var totalTerms int64
 	tokenized := make([][]string, len(sentences))
@@ -412,7 +423,7 @@ func selectSentences(sentences []sentence, ratioMillis int64) string {
 			index:          i,
 			text:           s.text,
 			listItem:       s.listItem,
-			tokens:         CountTokens(s.text),
+			tokens:         count(s.text),
 			score:          scoreSentence(s.text, words, i, len(sentences), termCounts, totalTerms),
 			anaphoric:      anaphoric,
 			digitTokens:    digitTokens,

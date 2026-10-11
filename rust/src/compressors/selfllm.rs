@@ -10,7 +10,7 @@ use crate::compressors::extract::{looks_structural, MIN_SPAN_TOKENS};
 use crate::content::get_text_content;
 use crate::json::{self, Value};
 use crate::stats::CompressionStats;
-use crate::tokens::count_tokens;
+use crate::tokens::{default_counter, TokenCounter};
 
 /// Minimal transport the caller provides: POST `body` (JSON) to `url` with
 /// `headers`, return the response body text (error string on failure).
@@ -56,6 +56,10 @@ pub struct SelfLlmOptions {
     pub ratio_millis: i64,
     pub max_summary_tokens: i64,
     pub base_url: Option<String>,
+    /// Optional token counter replacing the built-in estimator for span
+    /// guards and stats. `None` → the built-in estimator. Must be pure and
+    /// deterministic.
+    pub token_counter: Option<TokenCounter>,
 }
 
 pub struct SelfLlm<T: HttpPost> {
@@ -66,6 +70,7 @@ pub struct SelfLlm<T: HttpPost> {
     max_summary_tokens: i64,
     base_url: String,
     transport: T,
+    counter: TokenCounter,
 }
 
 impl<T: HttpPost> SelfLlm<T> {
@@ -98,6 +103,7 @@ impl<T: HttpPost> SelfLlm<T> {
             max_summary_tokens: options.max_summary_tokens,
             base_url,
             transport,
+            counter: options.token_counter.unwrap_or_else(default_counter),
         }
     }
 
@@ -189,7 +195,7 @@ impl<T: HttpPost> SelfLlm<T> {
                     }
                     // Structural output must reach the model verbatim.
                     if looks_structural(inner) {
-                        let tokens = count_tokens(inner);
+                        let tokens = self.count(inner);
                         return Ok((block.clone(), tokens, tokens));
                     }
                     let (compressed, i, o) = self.summarize_text(inner)?;
@@ -223,7 +229,7 @@ impl<T: HttpPost> SelfLlm<T> {
                 let tokens = if text.is_empty() {
                     0
                 } else {
-                    count_tokens(&text)
+                    self.count(&text)
                 };
                 Ok((block.clone(), tokens, tokens))
             }
@@ -234,17 +240,21 @@ impl<T: HttpPost> SelfLlm<T> {
     /// guarded (structural, under MIN_SPAN_TOKENS) or the provider summary
     /// is empty or not strictly shorter than the input.
     fn summarize_text(&self, text: &str) -> Result<(String, i64, i64), String> {
-        let in_tok = count_tokens(text);
+        let in_tok = self.count(text);
         if looks_structural(text) || in_tok < MIN_SPAN_TOKENS {
             return Ok((text.to_string(), in_tok, in_tok));
         }
         let summary = self.call(&self.user_prompt(text))?;
         let summary = summary.trim().to_string();
-        let out_tok = count_tokens(&summary);
+        let out_tok = self.count(&summary);
         if summary.is_empty() || out_tok >= in_tok {
             return Ok((text.to_string(), in_tok, in_tok));
         }
         Ok((summary, in_tok, out_tok))
+    }
+
+    fn count(&self, text: &str) -> i64 {
+        (self.counter)(text)
     }
 
     fn user_prompt(&self, text: &str) -> String {

@@ -111,9 +111,26 @@ func denseTokens(length int) int64 {
 // CountMessageTokens sums token counts over the compressible text of each
 // message.
 func CountMessageTokens(messages []Message) int64 {
+	return countMessageTokensWith(messages, CountTokens)
+}
+
+// TokenCounter counts tokens in raw text — see Config.TokenCounter. The
+// built-in default is CountTokens.
+type TokenCounter func(string) int64
+
+// counterOr returns f, or the built-in estimator when f is nil.
+func counterOr(f TokenCounter) TokenCounter {
+	if f == nil {
+		return CountTokens
+	}
+	return f
+}
+
+// countMessageTokensWith sums per-message text counts using count.
+func countMessageTokensWith(messages []Message, count TokenCounter) int64 {
 	var total int64
 	for _, m := range messages {
-		total += CountTokens(GetTextContent(m))
+		total += count(GetTextContent(m))
 	}
 	return total
 }

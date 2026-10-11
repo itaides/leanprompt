@@ -7,6 +7,8 @@
 //! `is_word_char`/`is_space_char` themselves are unchanged and still used
 //! unmodified by the Extract compressor's word-tokenization.
 
+use std::sync::Arc;
+
 use crate::chars::{is_space_char, is_word_char};
 use crate::content::get_text_content;
 use crate::json::Value;
@@ -92,4 +94,20 @@ pub fn count_message_tokens(messages: &[Value]) -> i64 {
         .iter()
         .map(|m| count_tokens(&get_text_content(m)))
         .sum()
+}
+
+/// Injectable token counter: raw text in, token count out. `count_tokens`
+/// is the built-in default; `Config::token_counter` swaps in a different
+/// one (e.g. a real BPE tokenizer) so thresholds and stats speak its units.
+pub type TokenCounter = Arc<dyn Fn(&str) -> i64 + Send + Sync>;
+
+/// The built-in estimator wrapped as a [`TokenCounter`].
+pub fn default_counter() -> TokenCounter {
+    Arc::new(count_tokens)
+}
+
+/// Sum token counts over the compressible text of each message, using
+/// `count` instead of the built-in estimator.
+pub fn count_message_tokens_with(messages: &[Value], count: &TokenCounter) -> i64 {
+    messages.iter().map(|m| count(&get_text_content(m))).sum()
 }

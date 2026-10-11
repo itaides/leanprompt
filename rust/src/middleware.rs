@@ -10,7 +10,7 @@ use crate::json::Value;
 use crate::router::Router;
 use crate::stats::CompressionStats;
 use crate::strategies::{DedupStrategy, NormalizeStrategy, PurgeErrorsStrategy, Strategy};
-use crate::tokens::count_message_tokens;
+use crate::tokens::{count_message_tokens_with, default_counter, TokenCounter};
 
 const DEFAULT_THRESHOLD_TOKENS: i64 = 2000;
 const DEFAULT_PROTECT_LAST_TURNS: usize = 2;
@@ -32,6 +32,13 @@ pub struct Config {
     pub dedup: bool,
     /// None disables purge; Some(n) purges errors older than n turns.
     pub purge_errors_after_turns: Option<usize>,
+    /// Optional token counter replacing the built-in estimator for every
+    /// token number the middleware computes: the `threshold_tokens` gate,
+    /// per-span guards and budgets inside compressors, and the
+    /// `input_tokens`/`output_tokens` stats. Invoked once per text span
+    /// with the raw text — the same spans `count_tokens` sees. Must be
+    /// pure and deterministic. `None` → the built-in estimator.
+    pub token_counter: Option<TokenCounter>,
 }
 
 impl Default for Config {
@@ -46,6 +53,7 @@ impl Default for Config {
             normalize_json: true,
             dedup: true,
             purge_errors_after_turns: Some(4),
+            token_counter: None,
         }
     }
 }
@@ -57,6 +65,7 @@ pub struct Middleware {
     router: Router,
     protector: Verbatim,
     strategies: Vec<Box<dyn Strategy>>,
+    count: TokenCounter,
 }
 
 impl Middleware {
@@ -64,7 +73,9 @@ impl Middleware {
         let mode = config.mode.to_lowercase();
         let active = !matches!(mode.as_str(), "off" | "passthrough" | "disabled");
 
-        let mut router = Router::new();
+        let count = config.token_counter.unwrap_or_else(default_counter);
+
+        let mut router = Router::with_default(Box::new(Verbatim::with_counter(count.clone())));
         for (ctype_str, compressor_name) in &config.routing {
             let Some(ctype) = ContentType::parse(ctype_str) else {
                 eprintln!(
@@ -73,8 +84,10 @@ impl Middleware {
                 continue;
             };
             let compressor: Box<dyn Compressor> = match compressor_name.as_str() {
-                "verbatim" => Box::new(Verbatim),
-                "extract" => Box::new(Extract::new(config.extract_ratio_millis)),
+                "verbatim" => Box::new(Verbatim::with_counter(count.clone())),
+                "extract" => Box::new(
+                    Extract::new(config.extract_ratio_millis).with_token_counter(count.clone()),
+                ),
                 other => {
                     eprintln!(
                         "leanprompt: compressor {other:?} not available; falling back to default (verbatim) for {ctype_str}"
@@ -109,8 +122,9 @@ impl Middleware {
             threshold: config.threshold_tokens,
             protect_last_turns: config.protect_last_turns,
             router,
-            protector: Verbatim,
+            protector: Verbatim::with_counter(count.clone()),
             strategies,
+            count,
         }
     }
 
@@ -126,7 +140,7 @@ impl Middleware {
 
         // Token count is taken on the ORIGINAL list so dedup/purge savings
         // count toward tokensSaved (parity-spec §9).
-        let input_tokens = count_message_tokens(messages);
+        let input_tokens = count_message_tokens_with(messages, &self.count);
         if input_tokens < self.threshold {
             return (
                 messages.to_vec(),

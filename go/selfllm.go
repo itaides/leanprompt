@@ -54,6 +54,13 @@ type SelfLLM struct {
 	MaxSummaryTokens int64
 	BaseURL          string
 	HTTPClient       *http.Client
+	// TokenCounter (nil → built-in estimator) is used for span guards and
+	// stats. Must be pure and deterministic.
+	TokenCounter TokenCounter
+}
+
+func (s *SelfLLM) count(text string) int64 {
+	return counterOr(s.TokenCounter)(text)
 }
 
 func NewSelfLLM(provider Provider, apiKey string) *SelfLLM {
@@ -173,7 +180,7 @@ func (s *SelfLLM) compressBlock(block any) (any, int64, int64, error) {
 			}
 			// Structural output must reach the model verbatim.
 			if looksStructural(inner) {
-				tokens := CountTokens(inner)
+				tokens := s.count(inner)
 				return block, tokens, tokens, nil
 			}
 			compressed, in, out, err := s.summarizeText(inner)
@@ -201,7 +208,7 @@ func (s *SelfLLM) compressBlock(block any) (any, int64, int64, error) {
 	text := extractText([]any{block})
 	var tokens int64
 	if text != "" {
-		tokens = CountTokens(text)
+		tokens = s.count(text)
 	}
 	return block, tokens, tokens, nil
 }
@@ -211,7 +218,7 @@ func (s *SelfLLM) compressBlock(block any) (any, int64, int64, error) {
 // minSpanTokens) or the summary is empty or not strictly shorter than the
 // input by estimator tokens.
 func (s *SelfLLM) summarizeText(text string) (string, int64, int64, error) {
-	inTok := CountTokens(text)
+	inTok := s.count(text)
 	if looksStructural(text) || inTok < minSpanTokens {
 		return text, inTok, inTok, nil
 	}
@@ -220,7 +227,7 @@ func (s *SelfLLM) summarizeText(text string) (string, int64, int64, error) {
 		return "", 0, 0, err
 	}
 	summary = strings.TrimSpace(summary)
-	outTok := CountTokens(summary)
+	outTok := s.count(summary)
 	if summary == "" || outTok >= inTok {
 		return text, inTok, inTok, nil
 	}

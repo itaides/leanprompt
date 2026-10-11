@@ -29,6 +29,9 @@ via its own `go/vX.Y.Z` git tag.
   fields (`tool_use_id`, `tool_call_id`, `name`, ...) survive untouched.
   Empty or non-shorter provider summaries now keep the original span instead
   of emitting empty or growing content.
+- Go: `Config{}` now defaults `ProtectLastTurns` to 2, matching TypeScript
+  and Rust (previously the zero value disabled recency protection). To
+  protect nothing, set `ProtectLastTurnsDisabled: true`.
 
 ### Changed
 - Middleware pipeline order: the token count and threshold gate now run on
@@ -44,6 +47,12 @@ via its own `go/vX.Y.Z` git tag.
   (default 15000).
 - `Middleware.compressMessagesAsync` runs per-message compressors
   concurrently and assembles results by index; output order is unchanged.
+- Bench scripts iterate corpora in sorted order so `bench/results/` output
+  is deterministic across filesystems.
+- `mcp-proxy` reads its version from `src/version.ts` (`check-version` runs
+  before tests) and `prepack` refuses to pack while `dependencies.leanprompt`
+  is a `file:` link. Transitive dev/runtime advisories resolved via
+  `npm audit fix`.
 
 ### Added
 - `selfllm.timeoutMs` (TS): aborts the provider request after N ms.

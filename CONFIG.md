@@ -104,17 +104,20 @@ Config{ExtractRatioMillis: 300}
 
 The most recent N messages are **always** routed to `verbatim`, regardless of
 `routing`. **Default: `2`.** `role === "system"` messages are *always*
-protected too, unconditionally, independent of this setting. Set to `0` to
-disable the recency protection (system messages are still exempt).
+protected too, unconditionally, independent of this setting. In TS/Rust set
+to `0` to disable the recency protection; in Go, `0` means the default --
+use `ProtectLastTurnsDisabled: true` to disable (system messages are still
+exempt in all languages).
 
 ```ts
-{ protect: { lastTurns: 4 } }
+{ protect: { lastTurns: 4 } }          // or 0 to disable
 ```
 ```rust
-Config { protect_last_turns: 4, ..Config::default() }
+Config { protect_last_turns: 4, ..Config::default() }  // or 0 to disable
 ```
 ```go
-Config{ProtectLastTurns: 4}
+Config{ProtectLastTurns: 4}            // 0 means default (2)
+Config{ProtectLastTurnsDisabled: true} // disable recency protection
 ```
 
 ## `strategies` — pre-compression filters, applied before classification/routing

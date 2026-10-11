@@ -63,7 +63,13 @@ func run() int {
 			i += 2
 		case "--protect-last-turns":
 			n, _ := strconv.Atoi(args[i+1])
-			config.ProtectLastTurns = n
+			// In Config, ProtectLastTurns 0 means "default (2)"; an explicit
+			// CLI 0 means "protect nothing".
+			if n == 0 {
+				config.ProtectLastTurnsDisabled = true
+			} else {
+				config.ProtectLastTurns = n
+			}
 			i += 2
 		default:
 			fmt.Fprintf(os.Stderr, "unknown flag %s\n", args[i])

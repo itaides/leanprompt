@@ -48,6 +48,16 @@ whose path ends in `/chat/completions`, `/v1/messages`, or `/messages`, so a
 global override could also intercept an unrelated API your app calls that
 happens to share one of those path suffixes.
 
+A few more boundaries to know:
+
+- `leanpromptFetch` only parses `string`, `Uint8Array`, and `Request`
+  bodies; `Blob`, `ArrayBuffer`, and `ReadableStream` bodies are forwarded
+  uncompressed.
+- `wrap()` intercepts `chat.completions.create` and `messages.create`
+  only; `beta.messages.*`, `*.stream()` helpers, and calls with
+  `stream: true` pass through uncompressed.
+- `mode: "hybrid"` is an alias of `"on"`.
+
 Or wrap an existing client instance (duck-typed, works with both SDKs):
 
 ```ts

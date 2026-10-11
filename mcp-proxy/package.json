@@ -23,7 +23,10 @@
     "scripts": {
         "build": "tsc",
         "typecheck": "tsc --noEmit",
+        "check-version": "node -e 'const fs=require(\"node:fs\");const v=fs.readFileSync(\"src/version.ts\",\"utf8\").match(/VERSION = \"([^\"]+)\"/);const p=require(\"./package.json\").version;if(!v||v[1]!==p){console.error(\"version mismatch: src/version.ts \"+(v?v[1]:\"?\")+\" != package.json \"+p);process.exit(1)}'",
+        "pretest": "npm run check-version",
         "test": "bun test",
+        "prepack": "node -e 'const d=(require(\"./package.json\").dependencies||{}).leanprompt||\"\";if(d.startsWith(\"file:\")){console.error(\"leanprompt dependency is a file: link; point it at the released leanprompt version range before packing\");process.exit(1)}'",
         "clean": "rm -rf dist"
     },
     "dependencies": {

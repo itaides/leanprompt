@@ -168,7 +168,7 @@ function evaluateCorpus(name: string, messages: Array<{ role: string; content: u
     };
 }
 
-const files = readdirSync(CORPORA_DIR).filter((f) => f.endsWith(".json"));
+const files = readdirSync(CORPORA_DIR).filter((f) => f.endsWith(".json")).sort();
 if (files.length === 0) {
     console.error(`No corpora found in ${CORPORA_DIR}`);
     process.exit(1);

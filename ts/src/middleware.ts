@@ -94,98 +94,101 @@ export class Middleware {
     }
 
     compressMessages(messages: ChatMessage[]): [ChatMessage[], CompressionStats] {
-        if (!this.active || messages.length === 0) {
-            return [
-                messages,
-                makeStats({ method: messages.length === 0 ? "empty" : "passthrough" }),
-            ];
+        const prep = this.prepare(messages);
+        if ("done" in prep) {
+            return prep.done;
         }
 
-        const inputTokens = countMessageTokens(messages);
-        if (inputTokens < this.threshold) {
-            return [
-                messages,
-                makeStats({
-                    inputTokens,
-                    outputTokens: inputTokens,
-                    ratio: 1.0,
-                    method: "below-threshold",
-                }),
-            ];
-        }
-
-        for (const strategy of this.strategies) {
-            messages = strategy.apply(messages);
-        }
-        if (messages.length === 0) {
-            return [
-                messages,
-                makeStats({ inputTokens, outputTokens: 0, ratio: 0, method: "empty" }),
-            ];
-        }
-
-        const outMsgs: ChatMessage[] = [];
-        let totalOut = 0;
-        let totalCost = 0;
-        const methods = new Set<string>();
-
-        for (let i = 0; i < messages.length; i++) {
-            const msg = messages[i]!;
-            const compressor = this.isProtected(i, messages.length, msg)
-                ? this.protector
-                : this.router.route(classify(msg));
-            const [compressed, stats] = compressor.compress([msg]);
-            outMsgs.push(...compressed);
-            totalOut += stats.outputTokens;
-            totalCost += stats.costUsd;
-            methods.add(stats.method);
-        }
-
-        return [outMsgs, aggregate(inputTokens, totalOut, totalCost, methods)];
+        const results = prep.messages.map((msg, i) =>
+            this.pick(i, prep.messages.length, msg).compress([msg]),
+        );
+        return this.finish(results, prep.inputTokens);
     }
 
     async compressMessagesAsync(
         messages: ChatMessage[],
     ): Promise<[ChatMessage[], CompressionStats]> {
+        const prep = this.prepare(messages);
+        if ("done" in prep) {
+            return prep.done;
+        }
+
+        const results = await Promise.all(
+            prep.messages.map((msg, i) =>
+                this.pick(i, prep.messages.length, msg).compressAsync([msg]),
+            ),
+        );
+        return this.finish(results, prep.inputTokens);
+    }
+
+    /**
+     * Mode gate -> empty -> count -> threshold -> strategies ->
+     * empty-after-strategies. Either the pipeline is finished early
+     * (`done`) or it returns the post-strategy messages plus the
+     * pre-strategy token count for stats.
+     */
+    private prepare(
+        messages: ChatMessage[],
+    ):
+        | { done: [ChatMessage[], CompressionStats] }
+        | { messages: ChatMessage[]; inputTokens: number } {
         if (!this.active || messages.length === 0) {
-            return [
-                messages,
-                makeStats({ method: messages.length === 0 ? "empty" : "passthrough" }),
-            ];
+            return {
+                done: [
+                    messages,
+                    makeStats({
+                        method: messages.length === 0 ? "empty" : "passthrough",
+                    }),
+                ],
+            };
         }
 
         const inputTokens = countMessageTokens(messages);
         if (inputTokens < this.threshold) {
-            return [
-                messages,
-                makeStats({
-                    inputTokens,
-                    outputTokens: inputTokens,
-                    ratio: 1.0,
-                    method: "below-threshold",
-                }),
-            ];
+            return {
+                done: [
+                    messages,
+                    makeStats({
+                        inputTokens,
+                        outputTokens: inputTokens,
+                        ratio: 1.0,
+                        method: "below-threshold",
+                    }),
+                ],
+            };
         }
 
         for (const strategy of this.strategies) {
             messages = strategy.apply(messages);
         }
         if (messages.length === 0) {
-            return [
-                messages,
-                makeStats({ inputTokens, outputTokens: 0, ratio: 0, method: "empty" }),
-            ];
+            return {
+                done: [
+                    messages,
+                    makeStats({
+                        inputTokens,
+                        outputTokens: 0,
+                        ratio: 0,
+                        method: "empty",
+                    }),
+                ],
+            };
         }
 
-        const results = await Promise.all(
-            messages.map((msg, i) => {
-                const compressor = this.isProtected(i, messages.length, msg)
-                    ? this.protector
-                    : this.router.route(classify(msg));
-                return compressor.compressAsync([msg]);
-            }),
-        );
+        return { messages, inputTokens };
+    }
 
+    private pick(index: number, total: number, msg: ChatMessage): Compressor {
+        if (this.isProtected(index, total, msg)) {
+            return this.protector;
+        }
+        return this.router.route(classify(msg));
+    }
+
+    private finish(
+        results: [ChatMessage[], CompressionStats][],
+        inputTokens: number,
+    ): [ChatMessage[], CompressionStats] {
         const outMsgs: ChatMessage[] = [];
         let totalOut = 0;
         let totalCost = 0;

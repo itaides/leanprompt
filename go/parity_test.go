@@ -117,8 +117,10 @@ func TestExtractVectors(t *testing.T) {
 		Text        string `json:"text"`
 		RatioMillis int64  `json:"ratioMillis"`
 		Sentences   []struct {
-			Text     string `json:"text"`
-			ListItem bool   `json:"listItem"`
+			Text           string `json:"text"`
+			ListItem       bool   `json:"listItem"`
+			Line           int    `json:"line"`
+			ParagraphBreak bool   `json:"paragraphBreak"`
 		} `json:"sentences"`
 		Selected string `json:"selected"`
 	}
@@ -129,9 +131,12 @@ func TestExtractVectors(t *testing.T) {
 			t.Fatalf("segmentation %s: got %d sentences want %d", c.Name, len(sentences), len(c.Sentences))
 		}
 		for i, s := range sentences {
-			if s.text != c.Sentences[i].Text || s.listItem != c.Sentences[i].ListItem {
-				t.Errorf("segmentation %s[%d]: got (%q, %v) want (%q, %v)",
-					c.Name, i, s.text, s.listItem, c.Sentences[i].Text, c.Sentences[i].ListItem)
+			want := c.Sentences[i]
+			if s.text != want.Text || s.listItem != want.ListItem ||
+				s.line != want.Line || s.paragraphBreak != want.ParagraphBreak {
+				t.Errorf("segmentation %s[%d]: got (%q, %v, %d, %v) want (%q, %v, %d, %v)",
+					c.Name, i, s.text, s.listItem, s.line, s.paragraphBreak,
+					want.Text, want.ListItem, want.Line, want.ParagraphBreak)
 			}
 		}
 		if got := selectSentences(sentences, c.RatioMillis); got != c.Selected {

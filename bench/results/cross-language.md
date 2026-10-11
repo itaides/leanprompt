@@ -8,7 +8,7 @@ gate — `cargo test` / `go test ./...` asserting byte-equality against
 
 | Corpus | ts vs rust | ts vs go | rust vs go | input tok (ts/rust/go) | output tok (ts/rust/go) |
 |---|---|---|---|---|---|
-| agent-heavy.json | match | match | match | 631/631/631 | 619/619/619 |
+| agent-heavy.json | match | match | match | 709/709/709 | 619/619/619 |
 | prose-heavy.json | match | match | match | 1555/1555/1555 | 958/958/958 |
 
 **All corpora agree across all three languages.**

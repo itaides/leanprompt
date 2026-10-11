@@ -294,20 +294,37 @@ pub fn mostly_ascii(text: &str) -> bool {
 pub struct Sentence {
     pub text: String,
     pub list_item: bool,
+    /// 0-based index of the source line among non-empty trimmed lines.
+    pub line: usize,
+    /// At least one empty/whitespace-only line immediately preceded this
+    /// sentence's source line (always false for the first line).
+    pub paragraph_break: bool,
 }
 
 /// Sentence segmentation (parity-spec §8).
 pub fn segment_sentences(text: &str) -> Vec<Sentence> {
     let mut out = Vec::new();
+    let mut line_index: usize = 0;
+    let mut pending_break = false;
     for raw_line in text.split('\n') {
         let line = raw_line.trim();
         if line.is_empty() {
+            // Blank lines after content mark a paragraph boundary.
+            if line_index > 0 {
+                pending_break = true;
+            }
             continue;
         }
+        let line_no = line_index;
+        line_index += 1;
+        let paragraph_break = pending_break;
+        pending_break = false;
         if is_list_line(line) {
             out.push(Sentence {
                 text: line.to_string(),
                 list_item: true,
+                line: line_no,
+                paragraph_break,
             });
             continue;
         }
@@ -316,6 +333,8 @@ pub fn segment_sentences(text: &str) -> Vec<Sentence> {
             out.push(Sentence {
                 text: line.to_string(),
                 list_item: false,
+                line: line_no,
+                paragraph_break,
             });
             continue;
         }
@@ -352,6 +371,8 @@ pub fn segment_sentences(text: &str) -> Vec<Sentence> {
                 out.push(Sentence {
                     text: piece,
                     list_item: false,
+                    line: line_no,
+                    paragraph_break,
                 });
             }
             start = i + 1;
@@ -363,6 +384,8 @@ pub fn segment_sentences(text: &str) -> Vec<Sentence> {
             out.push(Sentence {
                 text: rest,
                 list_item: false,
+                line: line_no,
+                paragraph_break,
             });
         }
     }
@@ -441,10 +464,13 @@ struct Scored {
     score: i64,
     anaphoric: bool,
     digit_tokens: Vec<String>,
+    line: usize,
+    paragraph_break: bool,
 }
 
 /// Greedy budgeted selection with redundancy filter and anaphora rule
-/// (parity-spec §8). Output joins kept sentences in original order.
+/// (parity-spec §8). Output re-joins kept sentences in original order with
+/// the source line structure.
 pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
     use std::collections::HashMap;
 
@@ -487,6 +513,8 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
                     .filter(|w| w.chars().any(|c| c.is_ascii_digit()))
                     .cloned()
                     .collect(),
+                line: s.line,
+                paragraph_break: s.paragraph_break,
             }
         })
         .collect();
@@ -541,12 +569,24 @@ pub fn select_sentences(sentences: &[Sentence], ratio_millis: i64) -> String {
         }
     }
 
-    let parts: Vec<&str> = scored
-        .iter()
-        .filter(|s| kept[s.index])
-        .map(|s| s.text.as_str())
-        .collect();
-    parts.join(" ")
+    // Re-emit with the source line structure: same-line sentences share a
+    // space, a new line starts on "\n", a paragraph break on "\n\n".
+    let mut out = String::new();
+    let mut prev_line: Option<usize> = None;
+    for s in scored.iter().filter(|s| kept[s.index]) {
+        if let Some(pl) = prev_line {
+            out.push_str(if pl == s.line {
+                " "
+            } else if s.paragraph_break {
+                "\n\n"
+            } else {
+                "\n"
+            });
+        }
+        prev_line = Some(s.line);
+        out.push_str(&s.text);
+    }
+    out
 }
 
 fn score_sentence(

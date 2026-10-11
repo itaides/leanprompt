@@ -102,10 +102,10 @@ extracted text is empty/whitespace. Constants are frozen:
 - `tool_calls` is an array of length > 0;
 - `function_call` is a non-null object.
 
-**RepeatTracker**: hash is SHA-256 over the UTF-8 bytes of `role + "|" +
-text`, hex-encoded. Never hashed (always "not a repeat", never recorded):
-messages with tool linkage, messages with `role == "system"`, and messages
-with empty extracted text.
+**RepeatTracker**: key is the exact string `role + "|" + text`. `isRepeat`
+is true iff the key was already recorded. Never recorded (always "not a
+repeat"): messages with tool linkage, messages with `role == "system"`,
+and messages with empty extracted text.
 
 ## 7. Strategies (`strategies`)
 
@@ -137,8 +137,12 @@ with empty extracted text.
 All scoring is **integer arithmetic**. No `log`/libm anywhere.
 
 Segmentation (per input, after splitting on `\n` and trimming each line):
-- Empty lines are skipped. List/table lines are single sentences flagged
-  `listItem`: lines starting with `|`, or `- ` / `* ` / `+ ` (with content
+- Empty lines are skipped. Each sentence records `line` (0-based index
+  among the non-empty trimmed lines of the span) and `paragraphBreak`
+  (true iff at least one empty/whitespace-only line immediately preceded
+  its source line; the first non-empty line's value is false).
+- List/table lines are single sentences flagged `listItem`: lines starting
+  with `|`, or `- ` / `* ` / `+ ` (with content
   after), or 1+ ASCII digits followed by `.` or `)` and a space.
 - Lines ≤ 12 code points are single sentences.
 - Otherwise split after `.`/`!`/`?` when followed by a space or tab, except:
@@ -169,8 +173,10 @@ Selection:
   from that kept sentence's.
 - A kept sentence whose first word token is in the anaphoric-opener set pulls
   in its immediate predecessor (if not kept), charged to the budget.
-- If nothing was kept, keep the top-ranked sentence. Output = kept sentences
-  in original order joined by a single space.
+- If nothing was kept, keep the top-ranked sentence. Output = kept
+  sentences in original order; the separator between consecutive kept
+  sentences A then B is `" "` when `A.line == B.line`, `"\n\n"` when
+  `B.paragraphBreak` is true, `"\n"` otherwise.
 
 Span guards (pass through unchanged): structural markers (``` or
 `Traceback (most recent call last)`), span < 40 tokens, < 3 sentences, or

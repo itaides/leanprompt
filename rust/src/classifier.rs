@@ -4,7 +4,6 @@ use std::collections::HashSet;
 
 use crate::content::get_text_content;
 use crate::json::Value;
-use crate::sha256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ContentType {
@@ -172,7 +171,7 @@ fn count_json_keys(chars: &[char]) -> usize {
     count
 }
 
-/// Tracks content hashes across a session to flag duplicate messages.
+/// Tracks content keys across a session to flag duplicate messages.
 #[derive(Default)]
 pub struct RepeatTracker {
     seen: HashSet<String>,
@@ -185,8 +184,9 @@ impl RepeatTracker {
 
     /// True if this message's content was seen before; records it as seen.
     pub fn is_repeat(&mut self, message: &Value) -> bool {
-        let h = Self::hash(message);
-        let Some(h) = h else { return false };
+        let Some(h) = Self::key(message) else {
+            return false;
+        };
         if self.seen.contains(&h) {
             return true;
         }
@@ -198,9 +198,9 @@ impl RepeatTracker {
         self.seen.clear();
     }
 
-    fn hash(message: &Value) -> Option<String> {
+    fn key(message: &Value) -> Option<String> {
         // tool_use/tool_result blocks pair by id; dropping a "duplicate"
-        // tool_result would orphan its tool_use. Never hash those messages.
+        // tool_result would orphan its tool_use. Never record those messages.
         if has_tool_linkage(message) {
             return None;
         }
@@ -212,7 +212,7 @@ impl RepeatTracker {
             return None;
         }
         let role = message.str_field("role");
-        Some(sha256::hex_digest(format!("{role}|{text}").as_bytes()))
+        Some(format!("{role}|{text}"))
     }
 }
 

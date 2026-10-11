@@ -235,22 +235,37 @@ func mostlyASCII(text string) bool {
 type sentence struct {
 	text     string
 	listItem bool
+	// line is the 0-based index of the source line among non-empty
+	// trimmed lines; paragraphBreak reports whether at least one
+	// empty/whitespace-only line immediately preceded that line.
+	line           int
+	paragraphBreak bool
 }
 
 func segmentSentences(text string) []sentence {
 	var out []sentence
+	lineIndex := 0
+	pendingBreak := false
 	for _, rawLine := range strings.Split(text, "\n") {
 		line := strings.TrimSpace(rawLine)
 		if line == "" {
+			// Blank lines after content mark a paragraph boundary.
+			if lineIndex > 0 {
+				pendingBreak = true
+			}
 			continue
 		}
+		lineNo := lineIndex
+		lineIndex++
+		paragraphBreak := pendingBreak
+		pendingBreak = false
 		if isListLine(line) {
-			out = append(out, sentence{text: line, listItem: true})
+			out = append(out, sentence{text: line, listItem: true, line: lineNo, paragraphBreak: paragraphBreak})
 			continue
 		}
 		chars := []rune(line)
 		if len(chars) <= minSentenceChars {
-			out = append(out, sentence{text: line})
+			out = append(out, sentence{text: line, line: lineNo, paragraphBreak: paragraphBreak})
 			continue
 		}
 		start := 0
@@ -275,13 +290,13 @@ func segmentSentences(text string) []sentence {
 			}
 			piece := strings.TrimSpace(string(chars[start : i+1]))
 			if piece != "" {
-				out = append(out, sentence{text: piece})
+				out = append(out, sentence{text: piece, line: lineNo, paragraphBreak: paragraphBreak})
 			}
 			start = i + 1
 		}
 		rest := strings.TrimSpace(string(chars[start:]))
 		if rest != "" {
-			out = append(out, sentence{text: rest})
+			out = append(out, sentence{text: rest, line: lineNo, paragraphBreak: paragraphBreak})
 		}
 	}
 	return out
@@ -352,13 +367,15 @@ func bitLength(n int64) int64 {
 }
 
 type scoredSentence struct {
-	index       int
-	text        string
-	listItem    bool
-	tokens      int64
-	score       int64
-	anaphoric   bool
-	digitTokens []string
+	index          int
+	text           string
+	listItem       bool
+	tokens         int64
+	score          int64
+	anaphoric      bool
+	digitTokens    []string
+	line           int
+	paragraphBreak bool
 }
 
 func selectSentences(sentences []sentence, ratioMillis int64) string {
@@ -391,13 +408,15 @@ func selectSentences(sentences []sentence, ratioMillis int64) string {
 			}
 		}
 		scored[i] = scoredSentence{
-			index:       i,
-			text:        s.text,
-			listItem:    s.listItem,
-			tokens:      CountTokens(s.text),
-			score:       scoreSentence(s.text, words, i, len(sentences), termCounts, totalTerms),
-			anaphoric:   anaphoric,
-			digitTokens: digitTokens,
+			index:          i,
+			text:           s.text,
+			listItem:       s.listItem,
+			tokens:         CountTokens(s.text),
+			score:          scoreSentence(s.text, words, i, len(sentences), termCounts, totalTerms),
+			anaphoric:      anaphoric,
+			digitTokens:    digitTokens,
+			line:           s.line,
+			paragraphBreak: s.paragraphBreak,
 		}
 	}
 
@@ -466,13 +485,29 @@ func selectSentences(sentences []sentence, ratioMillis int64) string {
 		kept[scored[ranked[0]].index] = true
 	}
 
-	var parts []string
-	for _, s := range scored {
-		if kept[s.index] {
-			parts = append(parts, s.text)
+	// Re-emit with the source line structure: same-line sentences share a
+	// space, a new line starts on "\n", a paragraph break on "\n\n".
+	var sb strings.Builder
+	prevLine := -1
+	for i := range scored {
+		s := &scored[i]
+		if !kept[s.index] {
+			continue
 		}
+		if prevLine >= 0 {
+			switch {
+			case prevLine == s.line:
+				sb.WriteString(" ")
+			case s.paragraphBreak:
+				sb.WriteString("\n\n")
+			default:
+				sb.WriteString("\n")
+			}
+		}
+		prevLine = s.line
+		sb.WriteString(s.text)
 	}
-	return strings.Join(parts, " ")
+	return sb.String()
 }
 
 func scoreSentence(

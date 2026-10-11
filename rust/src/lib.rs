@@ -15,7 +15,6 @@ pub mod content;
 pub mod json;
 pub mod middleware;
 pub mod router;
-pub mod sha256;
 pub mod stats;
 pub mod strategies;
 pub mod tokens;

@@ -24,7 +24,7 @@ const PENALTY_FILLER: i64 = 400;
 const REDUNDANCY_PCT: i64 = 60;
 const MIN_SENTENCE_CHARS: usize = 12;
 const MIN_SENTENCES_TO_COMPRESS: usize = 3;
-const MIN_SPAN_TOKENS: i64 = 40;
+pub(crate) const MIN_SPAN_TOKENS: i64 = 40;
 const MIN_ASCII_PCT: usize = 60;
 
 const STRUCTURAL_MARKERS: &[&str] = &["```", "Traceback (most recent call last)"];

@@ -16,10 +16,14 @@ compressed, stats := mw.CompressMessages(messages) // []map[string]any
 ```
 
 `SelfLLM` (LLM-delegated summarization for anthropic/openai/gemini) runs over
-stdlib `net/http` with an injectable `*http.Client`:
+stdlib `net/http` with an injectable `*http.Client`. Set
+`HTTPClient.Timeout` to bound provider latency; transport and HTTP errors
+are returned to the caller. Summarization preserves message/block shape:
+only `text` blocks and `tool_result` string content are summarized in place.
 
 ```go
 s := leanprompt.NewSelfLLM(leanprompt.Anthropic, apiKey)
+s.HTTPClient = &http.Client{Timeout: 15 * time.Second}
 out, stats, err := s.Compress(messages)
 ```
 

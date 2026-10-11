@@ -22,12 +22,32 @@ via its own `go/vX.Y.Z` git tag.
   purging can no longer orphan a paired `tool_use` (Anthropic 400).
 - `DedupStrategy`/`RepeatTracker` no longer hash `system` messages, so
   duplicate system prompts are kept.
+- SelfLLM preserves message and block shape: string `content`, block arrays
+  (including nested `tool_result` content), and single-object `content` are
+  summarized in place instead of being replaced by a bare summary message.
+  `tool_use`, `image`, `thinking` and unknown blocks plus all message/block
+  fields (`tool_use_id`, `tool_call_id`, `name`, ...) survive untouched.
+  Empty or non-shorter provider summaries now keep the original span instead
+  of emitting empty or growing content.
 
 ### Changed
 - Middleware pipeline order: the token count and threshold gate now run on
   the ORIGINAL message list, before strategies. Below-threshold calls
   return the input untouched (strategies no longer run), and
   `inputTokens`/`leanpromptTokensSaved` now include dedup/purge savings.
+- SelfLLM `CompressionStats.inputTokens`/`outputTokens` are estimator counts
+  of the span before/after compression, not provider-reported usage.
+- SelfLLM (TS) defaults to `onError: "fallback"`: a provider or network
+  error returns the original message unchanged with method
+  `"selfllm-fallback"` and a single `console.warn`; `"throw"` keeps the old
+  rejecting behavior. Provider requests now time out after `timeoutMs`
+  (default 15000).
+- `Middleware.compressMessagesAsync` runs per-message compressors
+  concurrently and assembles results by index; output order is unchanged.
+
+### Added
+- `selfllm.timeoutMs` (TS): aborts the provider request after N ms.
+- `selfllm.onError` (TS): `"fallback"` | `"throw"`.
 
 ## [0.2.0] — 2026-08-02
 

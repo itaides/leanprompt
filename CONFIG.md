@@ -179,14 +179,25 @@ each package's README).
 | `ratio` | `0.3` | A **prompt hint** to the LLM ("compress to roughly N%"), not an enforced constraint like `extract.ratio`. |
 | `maxSummaryTokens` | `500` | Passed as the completion's max-token budget. |
 | `baseUrl` | provider's real API endpoint | Override for testing or a proxy. TS also accepts `fetchImpl` to inject a fake `fetch`. |
+| `timeoutMs` | `15000` | TS only. Aborts the provider request after this many ms. In Go, set `SelfLLM.HTTPClient.Timeout`; in Rust, timeouts live in your `HttpPost` transport. |
+| `onError` | `"fallback"` | TS only. `"fallback"`: a provider or network error returns the original message unchanged (method `"selfllm-fallback"`, one `console.warn`). `"throw"`: the error rejects. Rust/Go always return the error to the caller. |
 
 ```ts
 { routing: { prose: "selfllm" }, selfllm: { provider: "openai", ratio: 0.2 } }
 ```
 
-SelfLLM entirely replaces a compressed span with one summary message (role
-taken from the first message in the span) rather than compressing in place —
-different from `extract`, which preserves per-block structure.
+SelfLLM summarizes compressible text spans in place, preserving the message
+shape: string `content` is replaced by the summary; block arrays are walked
+block by block (`text` blocks and `tool_result` string content are
+summarized, nested `tool_result` arrays recursed, `tool_use`/`image`/
+`thinking`/unknown blocks preserved verbatim); a single-object `content` is
+treated as one block. Per-span guards match `extract`: structural content
+(code fences, tracebacks), empty text, and spans under 40 estimator tokens
+are never sent to the provider. A provider summary is kept only when it is
+non-empty and strictly shorter than the original by estimator tokens;
+otherwise the span stays verbatim. `CompressionStats.inputTokens`/
+`outputTokens` are estimator counts of the span before and after, not
+provider-reported usage.
 
 ## Minimal-client constructor options (TS only: `Anthropic`, `OpenAI`)
 

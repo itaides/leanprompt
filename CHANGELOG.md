@@ -8,7 +8,8 @@ via its own `go/vX.Y.Z` git tag.
 
 ## [0.4.0] — 2026-10-11
 
-Feature release. The SDKs gain a default-on lossless `normalize` strategy (output changes on content it touches — CRLF, ANSI, invisible characters, JSON whitespace — while remaining byte-identical across the three ports) and an opt-in `tokenCounter` hook. `mcp-proxy` ships transparency, reversible `expand`, and remote upstreams together as its next release (0.1.1 → 0.4.0, skipping the intermediate labels used below while unreleased).
+Feature release. The SDKs gain a default-on lossless `normalize` strategy (output changes on content it touches — CRLF, ANSI, invisible characters, JSON whitespace — while remaining byte-identical across the three ports) and an opt-in `tokenCounter` hook; Rust adds an off-by-default `serde`
+interop feature. `mcp-proxy` ships transparency, reversible `expand`, and remote upstreams together as its next release (0.1.1 → 0.4.0, skipping the intermediate labels used below while unreleased).
 
 
 **mcp-proxy** — new remote upstream mode: `leanprompt-mcp-proxy --url

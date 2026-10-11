@@ -56,6 +56,15 @@ export interface LeanpromptConfig {
         apiKey?: string;
         ratio?: number;
         maxSummaryTokens?: number;
+        /** Abort a provider request after this many ms. Default 15000. */
+        timeoutMs?: number;
+        /**
+         * "fallback" (default): a provider/network error returns the
+         * original message unchanged. "throw": reject.
+         */
+        onError?: "fallback" | "throw";
+        /** Injectable fetch for tests. Defaults to globalThis.fetch. */
+        fetchImpl?: typeof fetch;
     };
     strategies?: {
         dedup?: boolean;

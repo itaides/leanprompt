@@ -104,7 +104,10 @@ const [compressed, stats] = mw.compressMessages(messages);
 
 `SelfLLM` (LLM-delegated summarization over raw fetch, providers:
 anthropic/openai/gemini) is available via `routing: { prose: "selfllm" }`
-with the async entry point, or standalone as `new SelfLLM({...})`.
+with the async entry point, or standalone as `new SelfLLM({...})`. It
+summarizes text spans in place, preserving message and block shape; on a
+provider error it falls back to the original message by default
+(`onError: "throw"` opts back into rejecting).
 
 ## Expected savings — honest math
 

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { Middleware } from "../src/middleware.js";
+import { SelfLLM } from "../src/compressors/selfllm.js";
+import { Middleware, registerCompressor } from "../src/middleware.js";
+
+// Mirror src/index.ts's registration so `routing: { prose: "selfllm" }`
+// resolves in this test file (index.ts is not imported here).
+registerCompressor("selfllm", (cfg) => new SelfLLM(cfg.selfllm ?? {}));
 
 const msg = (content: unknown, role = "user") => ({ role, content });
 
@@ -227,5 +232,43 @@ describe("Middleware strategies integration", () => {
         expect(out).toHaveLength(3); // duplicate dropped
         expect(stats.inputTokens).toBeGreaterThan(stats.outputTokens);
         expect(stats.method).toBe("verbatim");
+    });
+});
+
+describe("Middleware async concurrency", () => {
+    test("per-message compressAsync runs concurrently and preserves order", async () => {
+        // First provider call resolves AFTER the second; output must still
+        // be in input order because results are assembled by index.
+        const completionOrder: number[] = [];
+        let callIndex = 0;
+        const impl = (async (_input: unknown, init?: RequestInit) => {
+            const n = callIndex++;
+            const body = JSON.parse(String(init?.body)) as {
+                messages?: Array<{ content: string }>;
+            };
+            const seed = (body.messages?.[0]?.content ?? "").includes("slow-one")
+                ? "slow-one"
+                : "fast-two";
+            await new Promise((resolve) => setTimeout(resolve, n === 0 ? 40 : 5));
+            completionOrder.push(n);
+            return new Response(
+                JSON.stringify({ content: [{ text: `summary-of-${seed}` }] }),
+                { status: 200, headers: { "content-type": "application/json" } },
+            );
+        }) as typeof fetch;
+
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            routing: { prose: "selfllm" },
+            selfllm: { provider: "anthropic", apiKey: "k", fetchImpl: impl },
+            protect: { lastTurns: 0 },
+            strategies: { dedup: false, purgeErrors: false },
+        });
+        const input = [msg(prose("slow-one")), msg(prose("fast-two"))];
+        const [out] = await mw.compressMessagesAsync(input);
+        expect(completionOrder).toEqual([1, 0]);
+        expect(out[0]!.content).toBe("summary-of-slow-one");
+        expect(out[1]!.content).toBe("summary-of-fast-two");
     });
 });

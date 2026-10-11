@@ -83,7 +83,7 @@ const MIN_SENTENCE_CHARS = 12;
 const MIN_SENTENCES_TO_COMPRESS = 3;
 
 /** Spans below this many tokens are left alone (headers, short asks). */
-const MIN_SPAN_TOKENS = 40;
+export const MIN_SPAN_TOKENS = 40;
 
 /** Minimum ASCII share (percent of code points) for Extract to engage. */
 const MIN_ASCII_PCT = 60;

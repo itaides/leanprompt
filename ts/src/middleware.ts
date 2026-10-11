@@ -177,17 +177,21 @@ export class Middleware {
             ];
         }
 
+        const results = await Promise.all(
+            messages.map((msg, i) => {
+                const compressor = this.isProtected(i, messages.length, msg)
+                    ? this.protector
+                    : this.router.route(classify(msg));
+                return compressor.compressAsync([msg]);
+            }),
+        );
+
         const outMsgs: ChatMessage[] = [];
         let totalOut = 0;
         let totalCost = 0;
         const methods = new Set<string>();
 
-        for (let i = 0; i < messages.length; i++) {
-            const msg = messages[i]!;
-            const compressor = this.isProtected(i, messages.length, msg)
-                ? this.protector
-                : this.router.route(classify(msg));
-            const [compressed, stats] = await compressor.compressAsync([msg]);
+        for (const [compressed, stats] of results) {
             outMsgs.push(...compressed);
             totalOut += stats.outputTokens;
             totalCost += stats.costUsd;

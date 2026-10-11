@@ -81,31 +81,150 @@ func NewSelfLLM(provider Provider, apiKey string) *SelfLLM {
 
 func (s *SelfLLM) Name() string { return "selfllm" }
 
-// Compress summarizes the span into a single message of the first message's
-// role, with provider-reported token stats.
+// Compress summarizes compressible text spans in place: the returned
+// messages keep their original shape (block arrays, tool fields, metadata)
+// with only text/tool_result string content replaced by summaries that are
+// strictly shorter by estimator tokens.
 func (s *SelfLLM) Compress(messages []Message) ([]Message, CompressionStats, error) {
 	if len(messages) == 0 {
 		return messages, statsWithMethod("selfllm"), nil
 	}
-	var parts []string
+	compressible := false
 	for _, m := range messages {
-		parts = append(parts, GetTextContent(m))
+		if strings.TrimSpace(GetTextContent(m)) != "" {
+			compressible = true
+			break
+		}
 	}
-	text := strings.Join(parts, "\n\n")
-	if strings.TrimSpace(text) == "" {
+	if !compressible {
 		return messages, statsWithMethod("selfllm"), nil
 	}
 
-	summary, input, output, err := s.call(s.userPrompt(text))
+	out := make([]Message, 0, len(messages))
+	var totalIn, totalOut int64
+	for _, msg := range messages {
+		newMsg, in, o, err := s.compressMessage(msg)
+		if err != nil {
+			return nil, CompressionStats{}, err
+		}
+		out = append(out, newMsg)
+		totalIn += in
+		totalOut += o
+	}
+	return out, statsCounted("selfllm", totalIn, totalOut), nil
+}
+
+func (s *SelfLLM) compressMessage(msg Message) (Message, int64, int64, error) {
+	switch content := msg["content"].(type) {
+	case string:
+		if strings.TrimSpace(content) == "" {
+			return msg, 0, 0, nil
+		}
+		compressed, in, out, err := s.summarizeText(content)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		return cloneWith(msg, "content", compressed), in, out, nil
+	case []any:
+		newBlocks := make([]any, 0, len(content))
+		var totalIn, totalOut int64
+		for _, block := range content {
+			nb, in, out, err := s.compressBlock(block)
+			if err != nil {
+				return nil, 0, 0, err
+			}
+			newBlocks = append(newBlocks, nb)
+			totalIn += in
+			totalOut += out
+		}
+		return cloneWith(msg, "content", newBlocks), totalIn, totalOut, nil
+	case map[string]any:
+		// Single-object content is one block.
+		nb, in, out, err := s.compressBlock(content)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		return cloneWith(msg, "content", nb), in, out, nil
+	}
+	return msg, 0, 0, nil
+}
+
+func (s *SelfLLM) compressBlock(block any) (any, int64, int64, error) {
+	b, ok := block.(map[string]any)
+	if !ok {
+		return block, 0, 0, nil
+	}
+	switch strField(b, "type") {
+	case "text":
+		text := strField(b, "text")
+		if strings.TrimSpace(text) != "" {
+			compressed, in, out, err := s.summarizeText(text)
+			if err != nil {
+				return nil, 0, 0, err
+			}
+			return cloneWith(b, "text", compressed), in, out, nil
+		}
+		return block, 0, 0, nil
+	case "tool_result":
+		switch inner := b["content"].(type) {
+		case string:
+			if strings.TrimSpace(inner) == "" {
+				return block, 0, 0, nil
+			}
+			// Structural output must reach the model verbatim.
+			if looksStructural(inner) {
+				tokens := CountTokens(inner)
+				return block, tokens, tokens, nil
+			}
+			compressed, in, out, err := s.summarizeText(inner)
+			if err != nil {
+				return nil, 0, 0, err
+			}
+			return cloneWith(b, "content", compressed), in, out, nil
+		case []any:
+			newInner := make([]any, 0, len(inner))
+			var totalIn, totalOut int64
+			for _, item := range inner {
+				nb, in, out, err := s.compressBlock(item)
+				if err != nil {
+					return nil, 0, 0, err
+				}
+				newInner = append(newInner, nb)
+				totalIn += in
+				totalOut += out
+			}
+			return cloneWith(b, "content", newInner), totalIn, totalOut, nil
+		}
+		return block, 0, 0, nil
+	}
+	// Pass-through block types: token-count so ratios stay honest.
+	text := extractText([]any{block})
+	var tokens int64
+	if text != "" {
+		tokens = CountTokens(text)
+	}
+	return block, tokens, tokens, nil
+}
+
+// summarizeText summarizes one span via the provider. It returns the
+// original verbatim when the span is guarded (structural, under
+// minSpanTokens) or the summary is empty or not strictly shorter than the
+// input by estimator tokens.
+func (s *SelfLLM) summarizeText(text string) (string, int64, int64, error) {
+	inTok := CountTokens(text)
+	if looksStructural(text) || inTok < minSpanTokens {
+		return text, inTok, inTok, nil
+	}
+	summary, err := s.call(s.userPrompt(text))
 	if err != nil {
-		return nil, CompressionStats{}, err
+		return "", 0, 0, err
 	}
-	role := strField(messages[0], "role")
-	if role == "" {
-		role = "user"
+	summary = strings.TrimSpace(summary)
+	outTok := CountTokens(summary)
+	if summary == "" || outTok >= inTok {
+		return text, inTok, inTok, nil
 	}
-	out := []Message{{"role": role, "content": summary}}
-	return out, statsCounted("selfllm", input, output), nil
+	return summary, inTok, outTok, nil
 }
 
 func (s *SelfLLM) userPrompt(text string) string {
@@ -116,7 +235,7 @@ func (s *SelfLLM) userPrompt(text string) string {
 			"to continue.\n\n<content>\n%s\n</content>", pct, text)
 }
 
-func (s *SelfLLM) call(userPrompt string) (string, int64, int64, error) {
+func (s *SelfLLM) call(userPrompt string) (string, error) {
 	switch s.Provider {
 	case Anthropic:
 		return s.callAnthropic(userPrompt)
@@ -125,7 +244,7 @@ func (s *SelfLLM) call(userPrompt string) (string, int64, int64, error) {
 	case Gemini:
 		return s.callGemini(userPrompt)
 	}
-	return "", 0, 0, fmt.Errorf("SelfLLM provider %q not supported", s.Provider)
+	return "", fmt.Errorf("SelfLLM provider %q not supported", s.Provider)
 }
 
 func (s *SelfLLM) postJSON(url string, headers map[string]string, body any) (map[string]any, error) {
@@ -168,14 +287,7 @@ func (s *SelfLLM) postJSON(url string, headers map[string]string, body any) (map
 	return parsed, nil
 }
 
-func intField(obj map[string]any, key string) int64 {
-	if f, ok := obj[key].(float64); ok {
-		return int64(f)
-	}
-	return 0
-}
-
-func (s *SelfLLM) callAnthropic(userPrompt string) (string, int64, int64, error) {
+func (s *SelfLLM) callAnthropic(userPrompt string) (string, error) {
 	body := map[string]any{
 		"model":      s.Model,
 		"max_tokens": s.MaxSummaryTokens,
@@ -187,7 +299,7 @@ func (s *SelfLLM) callAnthropic(userPrompt string) (string, int64, int64, error)
 		"anthropic-version": "2023-06-01",
 	}, body)
 	if err != nil {
-		return "", 0, 0, err
+		return "", err
 	}
 	text := ""
 	if content, ok := parsed["content"].([]any); ok && len(content) > 0 {
@@ -195,11 +307,10 @@ func (s *SelfLLM) callAnthropic(userPrompt string) (string, int64, int64, error)
 			text = strField(block, "text")
 		}
 	}
-	usage, _ := parsed["usage"].(map[string]any)
-	return text, intField(usage, "input_tokens"), intField(usage, "output_tokens"), nil
+	return text, nil
 }
 
-func (s *SelfLLM) callOpenAI(userPrompt string) (string, int64, int64, error) {
+func (s *SelfLLM) callOpenAI(userPrompt string) (string, error) {
 	body := map[string]any{
 		"model":                 s.Model,
 		"max_completion_tokens": s.MaxSummaryTokens,
@@ -220,7 +331,7 @@ func (s *SelfLLM) callOpenAI(userPrompt string) (string, int64, int64, error) {
 		"authorization": "Bearer " + s.APIKey,
 	}, body)
 	if err != nil {
-		return "", 0, 0, err
+		return "", err
 	}
 	text := ""
 	if choices, ok := parsed["choices"].([]any); ok && len(choices) > 0 {
@@ -230,11 +341,10 @@ func (s *SelfLLM) callOpenAI(userPrompt string) (string, int64, int64, error) {
 			}
 		}
 	}
-	usage, _ := parsed["usage"].(map[string]any)
-	return text, intField(usage, "prompt_tokens"), intField(usage, "completion_tokens"), nil
+	return text, nil
 }
 
-func (s *SelfLLM) callGemini(userPrompt string) (string, int64, int64, error) {
+func (s *SelfLLM) callGemini(userPrompt string) (string, error) {
 	generationConfig := map[string]any{"maxOutputTokens": s.MaxSummaryTokens}
 	// Gemini 2.5+ thinking burns the output budget on hidden tokens.
 	for _, p := range geminiThinkingPrefixes {
@@ -256,7 +366,7 @@ func (s *SelfLLM) callGemini(userPrompt string) (string, int64, int64, error) {
 	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent", s.BaseURL, s.Model)
 	parsed, err := s.postJSON(url, map[string]string{"x-goog-api-key": s.APIKey}, body)
 	if err != nil {
-		return "", 0, 0, err
+		return "", err
 	}
 	text := ""
 	if candidates, ok := parsed["candidates"].([]any); ok && len(candidates) > 0 {
@@ -274,6 +384,5 @@ func (s *SelfLLM) callGemini(userPrompt string) (string, int64, int64, error) {
 			}
 		}
 	}
-	usage, _ := parsed["usageMetadata"].(map[string]any)
-	return text, intField(usage, "promptTokenCount"), intField(usage, "candidatesTokenCount"), nil
+	return text, nil
 }

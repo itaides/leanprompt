@@ -16,8 +16,10 @@
 
 import { getTextContent } from "../content.js";
 import { makeStats } from "../stats.js";
+import { countTokens } from "../tokens.js";
 import type { ChatMessage } from "../types.js";
 import type { Compressor, CompressResult } from "./base.js";
+import { looksStructural, MIN_SPAN_TOKENS } from "./extract.js";
 
 const SUPPORTED_PROVIDERS = new Set(["anthropic", "openai", "gemini"] as const);
 export type SelfLLMProvider = "anthropic" | "openai" | "gemini";
@@ -71,9 +73,6 @@ Return only the summary. No preamble, no explanation.`;
 /** Provider-neutral completion response shape. */
 interface Completion {
     text: string;
-    inputTokens: number;
-    outputTokens: number;
-    costUsd: number;
 }
 
 export interface SelfLLMOptions {
@@ -87,6 +86,13 @@ export interface SelfLLMOptions {
     baseUrl?: string;
     /** Injectable fetch for tests. Defaults to globalThis.fetch. */
     fetchImpl?: typeof fetch;
+    /** Abort a provider request after this many ms. Default 15000. */
+    timeoutMs?: number;
+    /**
+     * "fallback" (default): a provider/network error returns the message
+     * unchanged (method "selfllm-fallback"). "throw": reject as before.
+     */
+    onError?: "fallback" | "throw";
 }
 
 /** Compressor that delegates to an LLM for summarization over raw HTTP. */
@@ -99,6 +105,8 @@ export class SelfLLM implements Compressor {
     private readonly apiKey: string | undefined;
     private readonly baseUrl: string;
     private readonly fetchImpl: typeof fetch;
+    private readonly timeoutMs: number;
+    private readonly onError: "fallback" | "throw";
 
     constructor(options: SelfLLMOptions = {}) {
         const provider = options.provider ?? "anthropic";
@@ -115,6 +123,8 @@ export class SelfLLM implements Compressor {
         this.maxSummaryTokens = options.maxSummaryTokens ?? 500;
         this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URLS[provider]).replace(/\/+$/, "");
         this.fetchImpl = options.fetchImpl ?? fetch;
+        this.timeoutMs = options.timeoutMs ?? 15000;
+        this.onError = options.onError ?? "fallback";
     }
 
     compress(_messages: ChatMessage[]): CompressResult {
@@ -128,28 +138,159 @@ export class SelfLLM implements Compressor {
         if (messages.length === 0) {
             return [messages, makeStats({ method: "selfllm" })];
         }
-        const text = messages.map((m) => getTextContent(m)).join("\n\n");
-        if (!text.trim()) {
+        // Short-circuit when there's nothing to compress anywhere in the span.
+        if (!messages.some((m) => getTextContent(m).trim())) {
             return [messages, makeStats({ method: "selfllm" })];
         }
 
-        const completion = await this.call(this.userPrompt(text));
-
-        const role = typeof messages[0]!.role === "string" ? messages[0]!.role : "user";
-        const out: ChatMessage[] = [{ role, content: completion.text }];
-
+        const out: ChatMessage[] = [];
+        let totalIn = 0;
+        let totalOut = 0;
+        let fellBack = false;
+        for (const msg of messages) {
+            try {
+                const [newMsg, inTok, outTok] = await this.compressMessage(msg);
+                out.push(newMsg);
+                totalIn += inTok;
+                totalOut += outTok;
+            } catch (err) {
+                if (this.onError === "throw") {
+                    throw err;
+                }
+                console.warn(
+                    `leanprompt: selfllm fallback: ${
+                        err instanceof Error ? err.message : String(err)
+                    }`,
+                );
+                out.push(msg);
+                const tokens = countTokens(getTextContent(msg));
+                totalIn += tokens;
+                totalOut += tokens;
+                fellBack = true;
+            }
+        }
         return [
             out,
             makeStats({
-                inputTokens: completion.inputTokens,
-                outputTokens: completion.outputTokens,
-                ratio: completion.inputTokens
-                    ? completion.outputTokens / completion.inputTokens
-                    : 1.0,
-                method: "selfllm",
-                costUsd: completion.costUsd,
+                inputTokens: totalIn,
+                outputTokens: totalOut,
+                ratio: totalIn ? totalOut / totalIn : 1.0,
+                method: fellBack ? "selfllm-fallback" : "selfllm",
             }),
         ];
+    }
+
+    // ------------------------------------------------------------------ //
+    // Per-message / per-block handling (same walk as Extract: the message
+    // shape is preserved, only compressible text spans are summarized).
+    // ------------------------------------------------------------------ //
+
+    private async compressMessage(
+        msg: ChatMessage,
+    ): Promise<[ChatMessage, number, number]> {
+        const content = msg.content;
+
+        if (typeof content === "string") {
+            if (!content.trim()) {
+                return [msg, 0, 0];
+            }
+            const [compressed, inTok, outTok] = await this.summarizeText(content);
+            return [{ ...msg, content: compressed }, inTok, outTok];
+        }
+
+        if (Array.isArray(content)) {
+            const results = await Promise.all(
+                content.map((block) => this.compressBlock(block)),
+            );
+            let totalIn = 0;
+            let totalOut = 0;
+            const newBlocks = results.map(([nb, inTok, outTok]) => {
+                totalIn += inTok;
+                totalOut += outTok;
+                return nb;
+            });
+            return [{ ...msg, content: newBlocks }, totalIn, totalOut];
+        }
+
+        // Single-object content is one block; other shapes pass through.
+        if (content !== null && typeof content === "object") {
+            const [nb, inTok, outTok] = await this.compressBlock(content);
+            return [{ ...msg, content: nb }, inTok, outTok];
+        }
+        return [msg, 0, 0];
+    }
+
+    private async compressBlock(block: unknown): Promise<[unknown, number, number]> {
+        if (block === null || typeof block !== "object") {
+            return [block, 0, 0];
+        }
+        const b = block as Record<string, unknown>;
+        const btype = typeof b.type === "string" ? b.type : "";
+
+        if (btype === "text") {
+            const text = b.text;
+            if (typeof text === "string" && text.trim()) {
+                const [compressed, inTok, outTok] = await this.summarizeText(text);
+                return [{ ...b, text: compressed }, inTok, outTok];
+            }
+            return [block, 0, 0];
+        }
+
+        if (btype === "tool_result") {
+            const inner = b.content;
+            if (typeof inner === "string") {
+                if (!inner.trim()) {
+                    return [block, 0, 0];
+                }
+                // Structural content (code fences, tracebacks) must survive
+                // verbatim — a debugger or coding agent needs exact tokens.
+                if (looksStructural(inner)) {
+                    const tokens = countTokens(inner);
+                    return [block, tokens, tokens];
+                }
+                const [compressed, inTok, outTok] = await this.summarizeText(inner);
+                return [{ ...b, content: compressed }, inTok, outTok];
+            }
+            if (Array.isArray(inner)) {
+                const results = await Promise.all(
+                    inner.map((innerBlock) => this.compressBlock(innerBlock)),
+                );
+                let totalIn = 0;
+                let totalOut = 0;
+                const newInner = results.map(([nb, inTok, outTok]) => {
+                    totalIn += inTok;
+                    totalOut += outTok;
+                    return nb;
+                });
+                return [{ ...b, content: newInner }, totalIn, totalOut];
+            }
+            return [block, 0, 0];
+        }
+
+        // Pass-through block types (tool_use, image, thinking, document,
+        // unknown). Count tokens so the reported ratio stays honest.
+        const text = getTextContent({ role: "", content: [block] });
+        const tokens = text ? countTokens(text) : 0;
+        return [block, tokens, tokens];
+    }
+
+    /**
+     * Summarize one text span via the provider. Returns the original verbatim
+     * when the span is guarded (structural, too short) or the summary is not
+     * strictly shorter than the input by estimator tokens.
+     */
+    private async summarizeText(text: string): Promise<[string, number, number]> {
+        const inTok = countTokens(text);
+        if (looksStructural(text) || inTok < MIN_SPAN_TOKENS) {
+            return [text, inTok, inTok];
+        }
+        const completion = await this.call(this.userPrompt(text));
+        const summary = completion.text.trim();
+        const outTok = countTokens(summary);
+        if (!summary || outTok >= inTok) {
+            return [text, inTok, inTok];
+        }
+        return [summary, inTok, outTok];
     }
 
     private userPrompt(text: string): string {
@@ -184,13 +325,7 @@ export class SelfLLM implements Compressor {
             "anthropic-version": "2023-06-01",
         }, body);
         const content = (json.content as Array<{ text?: string }>) ?? [];
-        const usage = (json.usage as Record<string, number>) ?? {};
-        return {
-            text: content[0]?.text ?? "",
-            inputTokens: usage.input_tokens ?? 0,
-            outputTokens: usage.output_tokens ?? 0,
-            costUsd: 0,
-        };
+        return { text: content[0]?.text ?? "" };
     }
 
     private async callOpenAI(userPrompt: string): Promise<Completion> {
@@ -211,13 +346,7 @@ export class SelfLLM implements Compressor {
             authorization: `Bearer ${this.apiKey ?? ""}`,
         }, body);
         const choices = (json.choices as Array<{ message?: { content?: string } }>) ?? [];
-        const usage = (json.usage as Record<string, number>) ?? {};
-        return {
-            text: choices[0]?.message?.content ?? "",
-            inputTokens: usage.prompt_tokens ?? 0,
-            outputTokens: usage.completion_tokens ?? 0,
-            costUsd: 0,
-        };
+        return { text: choices[0]?.message?.content ?? "" };
     }
 
     private async callGemini(userPrompt: string): Promise<Completion> {
@@ -242,13 +371,7 @@ export class SelfLLM implements Compressor {
         const candidates =
             (json.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }>) ?? [];
         const parts = candidates[0]?.content?.parts ?? [];
-        const usage = (json.usageMetadata as Record<string, number>) ?? {};
-        return {
-            text: parts.map((p) => p.text ?? "").join(""),
-            inputTokens: usage.promptTokenCount ?? 0,
-            outputTokens: usage.candidatesTokenCount ?? 0,
-            costUsd: 0,
-        };
+        return { text: parts.map((p) => p.text ?? "").join("") };
     }
 
     private async postJson(
@@ -256,18 +379,25 @@ export class SelfLLM implements Compressor {
         headers: Record<string, string>,
         body: unknown,
     ): Promise<Record<string, unknown>> {
-        const response = await this.fetchImpl(url, {
-            method: "POST",
-            headers: { "content-type": "application/json", ...headers },
-            body: JSON.stringify(body),
-        });
-        if (!response.ok) {
-            const detail = await response.text().catch(() => "");
-            throw new Error(
-                `SelfLLM ${this.provider} request failed: HTTP ${response.status} ${detail.slice(0, 300)}`,
-            );
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+        try {
+            const response = await this.fetchImpl(url, {
+                method: "POST",
+                headers: { "content-type": "application/json", ...headers },
+                body: JSON.stringify(body),
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                const detail = await response.text().catch(() => "");
+                throw new Error(
+                    `SelfLLM ${this.provider} request failed: HTTP ${response.status} ${detail.slice(0, 300)}`,
+                );
+            }
+            return (await response.json()) as Record<string, unknown>;
+        } finally {
+            clearTimeout(timer);
         }
-        return (await response.json()) as Record<string, unknown>;
     }
 }
 

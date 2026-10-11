@@ -121,7 +121,10 @@ impl<T: HttpPost> SelfLlm<T> {
             ("role".to_string(), Value::Str(role.to_string())),
             ("content".to_string(), Value::Str(summary)),
         ])];
-        Ok((out, CompressionStats::counted("selfllm", input_tokens, output_tokens)))
+        Ok((
+            out,
+            CompressionStats::counted("selfllm", input_tokens, output_tokens),
+        ))
     }
 
     fn user_prompt(&self, text: &str) -> String {
@@ -144,7 +147,10 @@ impl<T: HttpPost> SelfLlm<T> {
     fn call_anthropic(&self, user_prompt: &str) -> Result<(String, i64, i64), String> {
         let body = Value::Obj(vec![
             ("model".into(), Value::Str(self.model.clone())),
-            ("max_tokens".into(), Value::Num(self.max_summary_tokens as f64)),
+            (
+                "max_tokens".into(),
+                Value::Num(self.max_summary_tokens as f64),
+            ),
             ("system".into(), Value::Str(SYSTEM_PROMPT.to_string())),
             (
                 "messages".into(),
@@ -171,15 +177,24 @@ impl<T: HttpPost> SelfLlm<T> {
             .map(|b| b.str_field("text").to_string())
             .unwrap_or_default();
         let usage = parsed.get("usage");
-        let input = usage.and_then(|u| u.get("input_tokens")).and_then(Value::as_i64).unwrap_or(0);
-        let output = usage.and_then(|u| u.get("output_tokens")).and_then(Value::as_i64).unwrap_or(0);
+        let input = usage
+            .and_then(|u| u.get("input_tokens"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let output = usage
+            .and_then(|u| u.get("output_tokens"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
         Ok((text, input, output))
     }
 
     fn call_openai(&self, user_prompt: &str) -> Result<(String, i64, i64), String> {
         let mut fields = vec![
             ("model".to_string(), Value::Str(self.model.clone())),
-            ("max_completion_tokens".to_string(), Value::Num(self.max_summary_tokens as f64)),
+            (
+                "max_completion_tokens".to_string(),
+                Value::Num(self.max_summary_tokens as f64),
+            ),
             (
                 "messages".to_string(),
                 Value::Arr(vec![
@@ -196,7 +211,10 @@ impl<T: HttpPost> SelfLlm<T> {
         ];
         // Reasoning models otherwise spend the completion budget on hidden
         // reasoning; compression needs none.
-        if OPENAI_REASONING_PREFIXES.iter().any(|p| self.model.starts_with(p)) {
+        if OPENAI_REASONING_PREFIXES
+            .iter()
+            .any(|p| self.model.starts_with(p))
+        {
             fields.push(("reasoning_effort".to_string(), Value::Str("minimal".into())));
         }
         let response = self.transport.post_json(
@@ -216,7 +234,10 @@ impl<T: HttpPost> SelfLlm<T> {
             .map(|m| m.str_field("content").to_string())
             .unwrap_or_default();
         let usage = parsed.get("usage");
-        let input = usage.and_then(|u| u.get("prompt_tokens")).and_then(Value::as_i64).unwrap_or(0);
+        let input = usage
+            .and_then(|u| u.get("prompt_tokens"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
         let output = usage
             .and_then(|u| u.get("completion_tokens"))
             .and_then(Value::as_i64)
@@ -230,7 +251,10 @@ impl<T: HttpPost> SelfLlm<T> {
             Value::Num(self.max_summary_tokens as f64),
         )];
         // Gemini 2.5+ thinking burns the output budget on hidden tokens.
-        if GEMINI_THINKING_PREFIXES.iter().any(|p| self.model.starts_with(p)) {
+        if GEMINI_THINKING_PREFIXES
+            .iter()
+            .any(|p| self.model.starts_with(p))
+        {
             generation_config.push((
                 "thinkingConfig".to_string(),
                 Value::Obj(vec![("thinkingBudget".into(), Value::Num(0.0))]),
@@ -263,7 +287,10 @@ impl<T: HttpPost> SelfLlm<T> {
             ("generationConfig".into(), Value::Obj(generation_config)),
         ]);
         let response = self.transport.post_json(
-            &format!("{}/v1beta/models/{}:generateContent", self.base_url, self.model),
+            &format!(
+                "{}/v1beta/models/{}:generateContent",
+                self.base_url, self.model
+            ),
             &[
                 ("x-goog-api-key".into(), self.api_key.clone()),
                 ("content-type".into(), "application/json".into()),

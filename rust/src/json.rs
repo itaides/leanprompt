@@ -88,7 +88,9 @@ impl PartialEq for Value {
             (Value::Obj(a), Value::Obj(b)) => {
                 a.len() == b.len()
                     && a.iter().all(|(k, v)| {
-                        b.iter().find(|(k2, _)| k2 == k).is_some_and(|(_, v2)| v == v2)
+                        b.iter()
+                            .find(|(k2, _)| k2 == k)
+                            .is_some_and(|(_, v2)| v == v2)
                     })
             }
             _ => false,
@@ -348,6 +350,8 @@ impl Parser {
             }
         }
         let text: String = self.chars[start..self.pos].iter().collect();
-        text.parse::<f64>().map(Value::Num).map_err(|e| e.to_string())
+        text.parse::<f64>()
+            .map(Value::Num)
+            .map_err(|e| e.to_string())
     }
 }

@@ -98,7 +98,7 @@ pub fn classify(message: &Value) -> ContentType {
     ContentType::Prose
 }
 
-fn looks_like_error(text: &str) -> bool {
+pub fn looks_like_error(text: &str) -> bool {
     ERROR_MARKERS.iter().any(|m| text.contains(m))
 }
 
@@ -204,6 +204,9 @@ impl RepeatTracker {
         if has_tool_linkage(message) {
             return None;
         }
+        if message.str_field("role") == "system" {
+            return None;
+        }
         let text = get_text_content(message);
         if text.is_empty() {
             return None;
@@ -213,11 +216,24 @@ impl RepeatTracker {
     }
 }
 
+/// True if this message participates in a tool-call chain: tool_use or
+/// tool_result blocks (list or single object), tool/function roles, or
+/// provider tool-call fields. Such messages pair by id; dropping or
+/// reordering them can orphan their counterpart.
 pub fn has_tool_linkage(message: &Value) -> bool {
-    let Some(items) = message.get("content").and_then(Value::as_arr) else {
-        return false;
-    };
-    items
-        .iter()
-        .any(|b| matches!(b.str_field("type"), "tool_use" | "tool_result"))
+    let is_tool_block = |b: &Value| matches!(b.str_field("type"), "tool_use" | "tool_result");
+    match message.get("content") {
+        Some(Value::Arr(items)) if items.iter().any(is_tool_block) => return true,
+        Some(b @ Value::Obj(_)) if is_tool_block(b) => return true,
+        _ => {}
+    }
+    if matches!(message.str_field("role"), "tool" | "function") {
+        return true;
+    }
+    if let Some(calls) = message.get("tool_calls").and_then(Value::as_arr) {
+        if !calls.is_empty() {
+            return true;
+        }
+    }
+    matches!(message.get("function_call"), Some(Value::Obj(_)))
 }

@@ -141,7 +141,8 @@ func TestExtractVectors(t *testing.T) {
 }
 
 func TestMiddlewareVectors(t *testing.T) {
-	var data struct {
+	var cases []struct {
+		Name   string `json:"name"`
 		Config struct {
 			Mode    string `json:"mode"`
 			Trigger struct {
@@ -161,27 +162,29 @@ func TestMiddlewareVectors(t *testing.T) {
 		OutputTokens int64     `json:"outputTokens"`
 		Method       string    `json:"method"`
 	}
-	load(t, "middleware.json", &data)
+	load(t, "middleware.json", &cases)
 
-	mw := NewMiddleware(Config{
-		Mode:               data.Config.Mode,
-		ThresholdTokens:    data.Config.Trigger.ThresholdTokens,
-		Routing:            data.Config.Routing,
-		ExtractRatioMillis: int64(data.Config.Extract.Ratio*1000 + 0.5),
-		ProtectLastTurns:   data.Config.Protect.LastTurns,
-	})
-	out, stats := mw.CompressMessages(data.Input)
+	for _, c := range cases {
+		mw := NewMiddleware(Config{
+			Mode:               c.Config.Mode,
+			ThresholdTokens:    c.Config.Trigger.ThresholdTokens,
+			Routing:            c.Config.Routing,
+			ExtractRatioMillis: int64(c.Config.Extract.Ratio*1000 + 0.5),
+			ProtectLastTurns:   c.Config.Protect.LastTurns,
+		})
+		out, stats := mw.CompressMessages(c.Input)
 
-	if !reflect.DeepEqual(out, data.Output) {
-		t.Errorf("middleware output mismatch:\n got %v\nwant %v", out, data.Output)
-	}
-	if stats.InputTokens != data.InputTokens {
-		t.Errorf("input tokens: got %d want %d", stats.InputTokens, data.InputTokens)
-	}
-	if stats.OutputTokens != data.OutputTokens {
-		t.Errorf("output tokens: got %d want %d", stats.OutputTokens, data.OutputTokens)
-	}
-	if stats.Method != data.Method {
-		t.Errorf("method: got %s want %s", stats.Method, data.Method)
+		if !reflect.DeepEqual(out, c.Output) {
+			t.Errorf("%s output mismatch:\n got %v\nwant %v", c.Name, out, c.Output)
+		}
+		if stats.InputTokens != c.InputTokens {
+			t.Errorf("%s input tokens: got %d want %d", c.Name, stats.InputTokens, c.InputTokens)
+		}
+		if stats.OutputTokens != c.OutputTokens {
+			t.Errorf("%s output tokens: got %d want %d", c.Name, stats.OutputTokens, c.OutputTokens)
+		}
+		if stats.Method != c.Method {
+			t.Errorf("%s method: got %s want %s", c.Name, stats.Method, c.Method)
+		}
 	}
 }

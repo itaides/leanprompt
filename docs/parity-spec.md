@@ -94,16 +94,43 @@ extracted text is empty/whitespace. Constants are frozen:
   1000 code points. A JSON key is `"` + 1–64 non-`"`/non-newline code points +
   `"` + optional spaces/tabs + `:` (procedural scan; no regex required).
 
+**Tool linkage** -- `hasToolLinkage(message)` is true when ANY of:
+
+- `content` is a block list containing an object whose `type` is `tool_use`
+  or `tool_result`, or `content` is a single object block of such a type;
+- `role` is `"tool"` or `"function"`;
+- `tool_calls` is an array of length > 0;
+- `function_call` is a non-null object.
+
 **RepeatTracker**: hash is SHA-256 over the UTF-8 bytes of `role + "|" +
-text`, hex-encoded. Messages containing `tool_use`/`tool_result` blocks are
-never hashed (always "not a repeat"). Empty text is never hashed.
+text`, hex-encoded. Never hashed (always "not a repeat", never recorded):
+messages with tool linkage, messages with `role == "system"`, and messages
+with empty extracted text.
 
 ## 7. Strategies (`strategies`)
 
 - **dedup**: fresh tracker per call; keep first occurrence.
 - **purge_errors(afterTurns=4)**: if `len(messages) <= afterTurns` return
-  unchanged; else replace the content of ERROR-classified messages with index
-  `< len - afterTurns` by `[errored output purged for context compaction]`.
+  unchanged. Otherwise, for each message with index `< len - afterTurns`:
+  skip when `role == "system"`; skip unless `classify(message) == ERROR`;
+  then purge by content shape:
+  - string content → replaced by the placeholder `[errored output purged
+    for context compaction]`;
+  - block list → each element mapped by `purgeBlock`; non-object elements
+    unchanged;
+  - single object block → `purgeBlock`;
+  - anything else → unchanged.
+
+  `purgeBlock(block)`: let `t = extractText(block)` (the same extraction
+  the classifier uses). If `t` contains no ERROR marker (the classifier's
+  marker list, §6), return the block unchanged. Otherwise by `type`:
+  `text` → `{...block, text: placeholder}`; `tool_result` → string
+  `content` → `{...block, content: placeholder}`, list `content` →
+  `{...block, content: elements mapped by purgeBlock}`, anything else →
+  unchanged; any other type (`tool_use`, `image`, `thinking`, `document`,
+  unknown) → unchanged. All other fields of the message and block
+  (`tool_call_id`, `tool_use_id`, `is_error`, `name`, `tool_calls`,
+  `cache_control`, ...) are preserved.
 
 ## 8. Extract compressor (`extract`, `word-tokens`)
 
@@ -156,10 +183,14 @@ text token-counted into both sides of the stats.
 
 ## 9. Middleware (`middleware`)
 
-Pipeline: mode gate (`off`/`passthrough`/`disabled` → passthrough) →
-strategies (dedup default on, purge default on with afterTurns=4) → token
-threshold (default 2000; below → `below-threshold`) → per-message
-classify/route/compress → aggregate.
+Pipeline: mode gate (`off`/`passthrough`/`disabled` → passthrough) → empty
+list → `empty` → `inputTokens = countMessageTokens(original messages)` →
+token threshold (default 2000; `inputTokens < threshold` → return the
+ORIGINAL list untouched, method `below-threshold`, inputTokens =
+outputTokens, ratio 1.0) → strategies (dedup default on, purge default on
+with afterTurns=4) → now-empty list → `empty` (inputTokens as counted,
+outputTokens 0, ratio 0) → per-message classify/route/compress →
+aggregate.
 
 Protection: `role == "system"` messages and the last `protect.lastTurns`
 (default 2) messages always route to Verbatim, regardless of routing config.
@@ -167,9 +198,12 @@ Protection: `role == "system"` messages and the last `protect.lastTurns`
 STRUCTURED routes to the Verbatim default unless explicitly configured — no
 automatic extractive pass for structured data.
 
-Aggregate method string: `empty` (no messages), the single method if all
-per-message methods agree, else `hybrid`. Ratio = totalOut/totalIn as a
-float — recomputed, never compared across languages.
+Aggregate: `totalIn = inputTokens` (the PRE-strategy count -- counting
+before strategies run is what lets `tokensSaved` include dedup/purge wins)
+and `totalOut = sum of per-message outputTokens`. Method string: `empty`
+(no messages), the single method if all per-message methods agree, else
+`hybrid`; strategies add no method. Ratio = totalOut/totalIn as a float --
+recomputed, never compared across languages.
 
 ## 10. Telemetry
 

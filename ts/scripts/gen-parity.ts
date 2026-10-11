@@ -168,6 +168,22 @@ emit(
 
 // Repeat-tracker sequence vector: same list processed in order.
 {
+    const openaiToolCall = (id: string): ChatMessage => ({
+        role: "assistant",
+        content: null,
+        tool_calls: [
+            { id, type: "function", function: { name: "ls", arguments: "{}" } },
+        ],
+    });
+    const functionCallMsg: ChatMessage = {
+        role: "assistant",
+        content: "",
+        function_call: { name: "grep", arguments: '{"q":"x"}' },
+    };
+    const singleToolBlock: ChatMessage = {
+        role: "user",
+        content: { type: "tool_result", tool_use_id: "t9", content: "z" },
+    };
     const seq: ChatMessage[] = [
         { role: "user", content: "same text" },
         { role: "assistant", content: "same text" },
@@ -176,6 +192,22 @@ emit(
         TOOL_RESULT_MSG,
         TOOL_RESULT_MSG,
         { role: "user", content: "other" },
+        // tool/function-role and provider tool-call linkage: never hashed.
+        { role: "tool", tool_call_id: "call_a", content: "same output" },
+        { role: "tool", tool_call_id: "call_b", content: "same output" },
+        openaiToolCall("a1"),
+        openaiToolCall("a2"),
+        functionCallMsg,
+        { ...functionCallMsg },
+        // system messages are never hashed, even when identical.
+        { role: "system", content: "Stay concise." },
+        { role: "system", content: "Stay concise." },
+        // single-object content block carrying tool linkage.
+        singleToolBlock,
+        { ...singleToolBlock },
+        // plain duplicates still dedup.
+        { role: "user", content: "dup me" },
+        { role: "user", content: "dup me" },
     ];
     const tracker = new RepeatTracker();
     emit(
@@ -189,14 +221,48 @@ emit(
     TOKEN_CASES.map((text) => ({ text, tokens: countTokens(text) })),
 );
 
-// Strategies: dedup + purge on a fixed conversation.
+// Strategies: dedup + purge on a fixed conversation exercising tool
+// linkage, system protection, and per-block purge shapes.
 {
     const conversation: ChatMessage[] = [
+        // 0: system containing an error marker -- never purged (role gate).
+        { role: "system", content: "You are a helpful agent. If a tool returns 'Error: not found', retry once." },
+        // 1: plain-string error -- replaced by the placeholder.
         { role: "user", content: "Error: catastrophic failure with a large payload attached here" },
+        // 2: OpenAI tool message with error -- placeholder, tool_call_id kept.
+        { role: "tool", tool_call_id: "call_1", content: "Error: index rebuild timed out after 30s" },
+        // 3-4: identical tool outputs with different call ids -- dedup keeps both.
+        { role: "tool", tool_call_id: "call_2", content: "README.md\nsrc\ntests\n" },
+        { role: "tool", tool_call_id: "call_3", content: "README.md\nsrc\ntests\n" },
+        // 5-6: assistant tool_calls -- never hashed, dedup keeps both.
+        { role: "assistant", content: null, tool_calls: [{ id: "a1", type: "function", function: { name: "ls", arguments: "{}" } }] },
+        { role: "assistant", content: null, tool_calls: [{ id: "a2", type: "function", function: { name: "ls", arguments: "{}" } }] },
+        // 7-8: assistant function_call -- never hashed, dedup keeps both.
+        { role: "assistant", content: "", function_call: { name: "grep", arguments: '{"q":"x"}' } },
+        { role: "assistant", content: "", function_call: { name: "grep", arguments: '{"q":"x"}' } },
+        // 9-10: duplicate system messages -- never hashed, dedup keeps both.
+        { role: "system", content: "Stay concise." },
+        { role: "system", content: "Stay concise." },
+        // 11: Anthropic block array -- only the errored tool_result content is replaced.
+        { role: "user", content: [
+            { type: "tool_result", tool_use_id: "t1", content: "Error: build failed with a very large log attached here" },
+            { type: "text", text: "fine" },
+        ]},
+        // 12: tool_result with nested block-array content -- nested purge.
+        { role: "user", content: [
+            { type: "tool_result", tool_use_id: "t2", content: [
+                { type: "text", text: "ERROR: boom while compiling the module" },
+                { type: "text", text: "ok" },
+            ]},
+        ]},
+        // 13: content as a single object block -- purgeBlock applies.
+        { role: "user", content: { type: "tool_result", tool_use_id: "t3", content: "Error: single object block shape" } },
+        // 14-16: a real duplicate -- dedup drops the second occurrence.
         { role: "user", content: "repeated question" },
         { role: "assistant", content: "answer one" },
         { role: "user", content: "repeated question" },
-        { role: "assistant", content: "answer two" },
+        // 17: recent error inside the afterTurns window -- not purged.
+        { role: "assistant", content: "Error: recent failure that should survive purge" },
         { role: "user", content: "final ask" },
     ];
     emit("strategies.json", {
@@ -230,30 +296,75 @@ emit("word-tokens.json", [
 
 // Middleware end-to-end (integer stats only; ratio recomputed per language).
 {
-    const config = {
-        mode: "on" as const,
-        trigger: { thresholdTokens: 10 },
-        routing: { prose: "extract" },
-        extract: { ratio: 0.5 },
-        protect: { lastTurns: 1 },
-    };
-    const input: ChatMessage[] = [
-        { role: "system", content: LONG_PROSE },
-        { role: "user", content: LONG_PROSE },
-        { role: "user", content: CODE_TEXT },
-        { role: "user", content: JSON_BLOB },
-        { role: "user", content: REPETITIVE_PROSE },
-        { role: "user", content: SHORT_ASK },
+    const cases: Array<{
+        name: string;
+        config: ConstructorParameters<typeof Middleware>[0];
+        input: ChatMessage[];
+    }> = [
+        {
+            name: "hybrid-routing",
+            config: {
+                mode: "on",
+                trigger: { thresholdTokens: 10 },
+                routing: { prose: "extract" },
+                extract: { ratio: 0.5 },
+                protect: { lastTurns: 1 },
+            },
+            input: [
+                { role: "system", content: LONG_PROSE },
+                { role: "user", content: LONG_PROSE },
+                { role: "user", content: CODE_TEXT },
+                { role: "user", content: JSON_BLOB },
+                { role: "user", content: REPETITIVE_PROSE },
+                { role: "user", content: SHORT_ASK },
+            ],
+        },
+        {
+            // Dedup drops a message above threshold; inputTokens is counted
+            // BEFORE strategies, so stats pin the dedup saving.
+            name: "dedup-counted",
+            config: {
+                mode: "on",
+                trigger: { thresholdTokens: 10 },
+                protect: { lastTurns: 1 },
+            },
+            input: [
+                { role: "user", content: REPETITIVE_PROSE },
+                { role: "assistant", content: "acknowledged, looking into it" },
+                { role: "user", content: REPETITIVE_PROSE },
+                { role: "user", content: SHORT_ASK },
+            ],
+        },
+        {
+            // Below threshold: strategies never run, output is the original
+            // list untouched even though it contains a duplicate.
+            name: "below-threshold-duplicate",
+            config: {
+                mode: "on",
+                trigger: { thresholdTokens: 100000 },
+            },
+            input: [
+                { role: "user", content: "hello" },
+                { role: "assistant", content: "hi" },
+                { role: "user", content: "hello" },
+            ],
+        },
     ];
-    const [out, stats] = new Middleware(config).compressMessages(input);
-    emit("middleware.json", {
-        config,
-        input,
-        output: out,
-        inputTokens: stats.inputTokens,
-        outputTokens: stats.outputTokens,
-        method: stats.method,
-    });
+    emit(
+        "middleware.json",
+        cases.map((c) => {
+            const [out, stats] = new Middleware(c.config).compressMessages(c.input);
+            return {
+                name: c.name,
+                config: c.config,
+                input: c.input,
+                output: out,
+                inputTokens: stats.inputTokens,
+                outputTokens: stats.outputTokens,
+                method: stats.method,
+            };
+        }),
+    );
 }
 
 console.log("done");

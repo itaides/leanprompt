@@ -50,6 +50,25 @@ describe("Middleware gates", () => {
         expect(stats.inputTokens).toBeGreaterThan(0);
         expect(stats.outputTokens).toBe(stats.inputTokens);
     });
+
+    test("below threshold → same array reference, strategies never run", () => {
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 100000 },
+        });
+        // Contains a duplicate and an old error; both would be rewritten if
+        // strategies ran before the threshold gate.
+        const input = [
+            msg("Error: old failure from many turns ago ".repeat(3)),
+            msg("hello"),
+            msg("hi"),
+            msg("hello"),
+        ];
+        const [out, stats] = mw.compressMessages(input);
+        expect(out).toBe(input);
+        expect(out).toHaveLength(4);
+        expect(stats.method).toBe("below-threshold");
+    });
 });
 
 describe("Middleware routing + compression", () => {
@@ -189,5 +208,24 @@ describe("Middleware strategies integration", () => {
         const p = prose("nodedup");
         const [out] = mw.compressMessages([msg(p), msg(p)]);
         expect(out).toHaveLength(2);
+    });
+
+    test("dedup savings count in stats: inputTokens counts pre-strategy messages", () => {
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            routing: { prose: "verbatim" },
+            protect: { lastTurns: 1 },
+        });
+        const p = prose("dedup-stats");
+        const [out, stats] = mw.compressMessages([
+            msg(p),
+            msg("acknowledged, looking into it", "assistant"),
+            msg(p),
+            msg("what changed?"),
+        ]);
+        expect(out).toHaveLength(3); // duplicate dropped
+        expect(stats.inputTokens).toBeGreaterThan(stats.outputTokens);
+        expect(stats.method).toBe("verbatim");
     });
 });

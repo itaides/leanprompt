@@ -111,25 +111,35 @@ impl Middleware {
             return (messages.to_vec(), CompressionStats::with_method(method));
         }
 
+        // Token count is taken on the ORIGINAL list so dedup/purge savings
+        // count toward tokensSaved (parity-spec §9).
+        let input_tokens = count_message_tokens(messages);
+        if input_tokens < self.threshold {
+            return (
+                messages.to_vec(),
+                CompressionStats::counted("below-threshold", input_tokens, input_tokens),
+            );
+        }
+
         let mut messages: Vec<Value> = messages.to_vec();
         for strategy in &self.strategies {
             messages = strategy.apply(messages);
         }
         if messages.is_empty() {
-            return (messages, CompressionStats::with_method("empty"));
-        }
-
-        let input_tokens = count_message_tokens(&messages);
-        if input_tokens < self.threshold {
             return (
                 messages,
-                CompressionStats::counted("below-threshold", input_tokens, input_tokens),
+                CompressionStats {
+                    input_tokens,
+                    output_tokens: 0,
+                    ratio: 0.0,
+                    method: "empty".to_string(),
+                    cost_usd: 0.0,
+                },
             );
         }
 
         let total = messages.len();
         let mut out = Vec::with_capacity(total);
-        let mut total_in = 0;
         let mut total_out = 0;
         let mut total_cost = 0.0;
         let mut methods: HashSet<String> = HashSet::new();
@@ -142,13 +152,15 @@ impl Middleware {
             };
             let (compressed, stats) = compressor.compress(std::slice::from_ref(msg));
             out.extend(compressed);
-            total_in += stats.input_tokens;
             total_out += stats.output_tokens;
             total_cost += stats.cost_usd;
             methods.insert(stats.method);
         }
 
-        (out, aggregate(total_in, total_out, total_cost, &methods))
+        (
+            out,
+            aggregate(input_tokens, total_out, total_cost, &methods),
+        )
     }
 
     /// System messages and the last K turns are never handed to a lossy

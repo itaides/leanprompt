@@ -140,63 +140,61 @@ fn extract_vectors() {
 
 #[test]
 fn middleware_vectors() {
-    let data = load("middleware.json");
-    let cfg = data.get("config").expect("config");
+    for data in cases(&load("middleware.json")) {
+        let name = data.str_field("name");
+        let cfg = data.get("config").expect("config");
 
-    // Mirror the golden config (see ts/scripts/gen-parity.ts).
-    let routing = cfg
-        .get("routing")
-        .map(|r| match r {
-            Value::Obj(entries) => entries
-                .iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_string()))
-                .collect(),
-            _ => Vec::new(),
-        })
-        .unwrap_or_default();
-    let ratio = cfg
-        .get("extract")
-        .and_then(|e| e.get("ratio"))
-        .map(|v| match v {
-            Value::Num(n) => (n * 1000.0).round() as i64,
-            _ => 500,
-        })
-        .unwrap_or(500);
-    let config = Config {
-        mode: cfg.str_field("mode").to_string(),
-        threshold_tokens: cfg
-            .get("trigger")
-            .and_then(|t| t.get("thresholdTokens"))
-            .and_then(Value::as_i64)
-            .unwrap_or(2000),
-        routing,
-        extract_ratio_millis: ratio,
-        protect_last_turns: cfg
-            .get("protect")
-            .and_then(|p| p.get("lastTurns"))
-            .and_then(Value::as_i64)
-            .unwrap_or(2) as usize,
-        ..Config::default()
-    };
+        // Mirror the golden config (see ts/scripts/gen-parity.ts).
+        let routing = cfg
+            .get("routing")
+            .map(|r| match r {
+                Value::Obj(entries) => entries
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_string()))
+                    .collect(),
+                _ => Vec::new(),
+            })
+            .unwrap_or_default();
+        let ratio = cfg
+            .get("extract")
+            .and_then(|e| e.get("ratio"))
+            .map(|v| match v {
+                Value::Num(n) => (n * 1000.0).round() as i64,
+                _ => 500,
+            })
+            .unwrap_or(500);
+        let config = Config {
+            mode: cfg.str_field("mode").to_string(),
+            threshold_tokens: cfg
+                .get("trigger")
+                .and_then(|t| t.get("thresholdTokens"))
+                .and_then(Value::as_i64)
+                .unwrap_or(2000),
+            routing,
+            extract_ratio_millis: ratio,
+            protect_last_turns: cfg
+                .get("protect")
+                .and_then(|p| p.get("lastTurns"))
+                .and_then(Value::as_i64)
+                .unwrap_or(2) as usize,
+            ..Config::default()
+        };
 
-    let input = data.get("input").and_then(Value::as_arr).unwrap();
-    let (output, stats) = Middleware::new(config).compress_messages(input);
+        let input = data.get("input").and_then(Value::as_arr).unwrap();
+        let (output, stats) = Middleware::new(config).compress_messages(input);
 
-    let expected_output = data.get("output").and_then(Value::as_arr).unwrap();
-    assert_eq!(
-        output.as_slice(),
-        expected_output,
-        "middleware output messages"
-    );
-    assert_eq!(
-        stats.input_tokens,
-        data.get("inputTokens").and_then(Value::as_i64).unwrap(),
-        "input tokens"
-    );
-    assert_eq!(
-        stats.output_tokens,
-        data.get("outputTokens").and_then(Value::as_i64).unwrap(),
-        "output tokens"
-    );
-    assert_eq!(stats.method, data.str_field("method"), "method");
+        let expected_output = data.get("output").and_then(Value::as_arr).unwrap();
+        assert_eq!(output.as_slice(), expected_output, "{name} output messages");
+        assert_eq!(
+            stats.input_tokens,
+            data.get("inputTokens").and_then(Value::as_i64).unwrap(),
+            "{name} input tokens"
+        );
+        assert_eq!(
+            stats.output_tokens,
+            data.get("outputTokens").and_then(Value::as_i64).unwrap(),
+            "{name} output tokens"
+        );
+        assert_eq!(stats.method, data.str_field("method"), "{name} method");
+    }
 }

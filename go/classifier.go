@@ -187,6 +187,9 @@ func repeatHash(message Message) (string, bool) {
 	if hasToolLinkage(message) {
 		return "", false
 	}
+	if strField(message, "role") == "system" {
+		return "", false
+	}
 	text := GetTextContent(message)
 	if text == "" {
 		return "", false
@@ -196,18 +199,39 @@ func repeatHash(message Message) (string, bool) {
 	return hex.EncodeToString(sum[:]), true
 }
 
+// hasToolLinkage reports whether a message participates in a tool-call
+// chain: tool_use/tool_result blocks (list or single object), tool/function
+// roles, or provider tool-call fields. Such messages pair by id; dropping
+// or reordering them can orphan their counterpart.
 func hasToolLinkage(message Message) bool {
-	items, ok := message["content"].([]any)
-	if !ok {
-		return false
+	isToolBlock := func(item any) bool {
+		b, ok := item.(map[string]any)
+		if !ok {
+			return false
+		}
+		t := strField(b, "type")
+		return t == "tool_use" || t == "tool_result"
 	}
-	for _, item := range items {
-		if b, ok := item.(map[string]any); ok {
-			t := strField(b, "type")
-			if t == "tool_use" || t == "tool_result" {
+	switch content := message["content"].(type) {
+	case []any:
+		for _, item := range content {
+			if isToolBlock(item) {
 				return true
 			}
 		}
+	case map[string]any:
+		if isToolBlock(content) {
+			return true
+		}
+	}
+	if role := strField(message, "role"); role == "tool" || role == "function" {
+		return true
+	}
+	if calls, ok := message["tool_calls"].([]any); ok && len(calls) > 0 {
+		return true
+	}
+	if _, ok := message["function_call"].(map[string]any); ok {
+		return true
 	}
 	return false
 }

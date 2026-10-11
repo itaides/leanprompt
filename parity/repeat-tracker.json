@@ -76,5 +76,139 @@
       "content": "other"
     },
     "isRepeat": false
+  },
+  {
+    "index": 7,
+    "message": {
+      "role": "tool",
+      "tool_call_id": "call_a",
+      "content": "same output"
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 8,
+    "message": {
+      "role": "tool",
+      "tool_call_id": "call_b",
+      "content": "same output"
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 9,
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a1",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 10,
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "a2",
+          "type": "function",
+          "function": {
+            "name": "ls",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 11,
+    "message": {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 12,
+    "message": {
+      "role": "assistant",
+      "content": "",
+      "function_call": {
+        "name": "grep",
+        "arguments": "{\"q\":\"x\"}"
+      }
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 13,
+    "message": {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 14,
+    "message": {
+      "role": "system",
+      "content": "Stay concise."
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 15,
+    "message": {
+      "role": "user",
+      "content": {
+        "type": "tool_result",
+        "tool_use_id": "t9",
+        "content": "z"
+      }
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 16,
+    "message": {
+      "role": "user",
+      "content": {
+        "type": "tool_result",
+        "tool_use_id": "t9",
+        "content": "z"
+      }
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 17,
+    "message": {
+      "role": "user",
+      "content": "dup me"
+    },
+    "isRepeat": false
+  },
+  {
+    "index": 18,
+    "message": {
+      "role": "user",
+      "content": "dup me"
+    },
+    "isRepeat": true
   }
 ]

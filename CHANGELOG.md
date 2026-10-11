@@ -15,6 +15,25 @@ gateway) instead of spawning a stdio command. `--header "Name: value"`
 request; `--url` and `-- <command>` are mutually exclusive, and compression
 flags behave identically in both modes.
 
+### Added
+- New `normalize` strategy — a lossless "level 0" cleanup that runs FIRST
+  in the middleware pipeline (before dedup, so CRLF/ANSI variants of the
+  same output dedup to one message). On by default in all three SDKs.
+  `system` messages are never modified; which rules apply is gated by the
+  message's classifier class computed on the original message:
+  - N1 (all classes): `\r\n`/`\r` → `\n`.
+  - N2 (all classes): ANSI escape removal (CSI, OSC, two-byte Fe).
+  - N3 (prose only): strips U+200B/U+2060/U+FEFF — also closes a
+    prompt-injection hiding channel; ZWNJ/ZWJ are kept.
+  - N4 (prose only): collapses 3+ newline runs to exactly 2; markdown hard
+    breaks survive.
+  - N5 (structured only): lossless JSON whitespace minification for
+    complete balanced values; malformed input passes through unchanged.
+  Config: `strategies.normalize` / `{ json: false }` (TS),
+  `normalize` / `normalize_json` (Rust), `NormalizeDisabled` /
+  `NormalizeJSONDisabled` (Go). New golden vector file
+  `parity/normalize.json`.
+
 ### Changed
 - Extract marker matching now requires a word-start boundary (`do not` no
   longer fires inside `pseudo notation`, `never ` inside `whenever `,

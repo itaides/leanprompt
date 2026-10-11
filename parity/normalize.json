@@ -1,0 +1,220 @@
+[
+  {
+    "name": "crlf",
+    "message": {
+      "role": "user",
+      "content": "first line\r\nsecond line\r\nthird line"
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "first line\nsecond line\nthird line"
+    }
+  },
+  {
+    "name": "ansi-error",
+    "message": {
+      "role": "user",
+      "content": "\u001b[31mTraceback (most recent call last):\u001b[0m\n  File \"x.py\", line 1\u001b[2m, in <module>\u001b[0m\nValueError: nope​\n\n\n\ntail\u001b]8;;http://example.com\u0007link\u001b]8;;\u0007"
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "Traceback (most recent call last):\n  File \"x.py\", line 1, in <module>\nValueError: nope​\n\n\n\ntaillink"
+    }
+  },
+  {
+    "name": "prose-invisibles-blank-run",
+    "message": {
+      "role": "user",
+      "content": "The first​ paragraph has invisible⁠ marks.﻿\nA markdown hard break ends this line.  \n\n\n\n\nThe second paragraph starts here."
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "The first paragraph has invisible marks.\nA markdown hard break ends this line.  \n\nThe second paragraph starts here."
+    }
+  },
+  {
+    "name": "code-template-blank-run",
+    "message": {
+      "role": "user",
+      "content": "```ts\r\nconst s = `a\n\n\n\nb`;\r\nexport default s;\n```"
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "```ts\nconst s = `a\n\n\n\nb`;\nexport default s;\n```"
+    }
+  },
+  {
+    "name": "structured-json-minify",
+    "message": {
+      "role": "user",
+      "content": "{\n  \"name\": \"svc\",\n  \"note\": \"  spaced  \\\"quoted\\\" text  \",\n  \"bignum\": 12345678901234567890,\n  \"tags\": [\n    \"alpha\",\n    \"beta\"\n  ],\n  \"nested\": {\n    \"x\": 1,\n    \"y\": 2\n  },\n  \"padding\": \"filler text to push this blob past the two hundred character minimum for the structured classifier gate\"\n}"
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "{\"name\":\"svc\",\"note\":\"  spaced  \\\"quoted\\\" text  \",\"bignum\":12345678901234567890,\"tags\":[\"alpha\",\"beta\"],\"nested\":{\"x\":1,\"y\":2},\"padding\":\"filler text to push this blob past the two hundred character minimum for the structured classifier gate\"}"
+    }
+  },
+  {
+    "name": "structured-json-disabled",
+    "message": {
+      "role": "user",
+      "content": "{\n  \"name\": \"svc\",\n  \"note\": \"  spaced  \\\"quoted\\\" text  \",\n  \"bignum\": 12345678901234567890,\n  \"tags\": [\n    \"alpha\",\n    \"beta\"\n  ],\n  \"nested\": {\n    \"x\": 1,\n    \"y\": 2\n  },\n  \"padding\": \"filler text to push this blob past the two hundred character minimum for the structured classifier gate\"\n}"
+    },
+    "json": false,
+    "output": {
+      "role": "user",
+      "content": "{\n  \"name\": \"svc\",\n  \"note\": \"  spaced  \\\"quoted\\\" text  \",\n  \"bignum\": 12345678901234567890,\n  \"tags\": [\n    \"alpha\",\n    \"beta\"\n  ],\n  \"nested\": {\n    \"x\": 1,\n    \"y\": 2\n  },\n  \"padding\": \"filler text to push this blob past the two hundred character minimum for the structured classifier gate\"\n}"
+    }
+  },
+  {
+    "name": "malformed-json-unchanged",
+    "message": {
+      "role": "user",
+      "content": "{\n  \"k00\": \"v0\",\n  \"k01\": \"v1\",\n  \"k02\": \"v2\",\n  \"k03\": \"v3\",\n  \"k04\": \"v4\",\n  \"k05\": \"v5\",\n  \"k06\": \"v6\",\n  \"k07\": \"v7\",\n  \"k08\": \"v8\",\n  \"k09\": \"v9\",\n  \"k10\": \"v10\",\n  \"k11\": \"v11\",\n  \"k12\": \"v12\",\n  \"k13\": \"v13\",\n  \"k14\": \"v14\",\n  \"k15\": \"v15\",\n  \"k16\": \"v16\",\n  \"k17\": \"v17\",\n  \"k18\": \"v18\",\n  \"k19\": \"v19\",\n  \"tail\": \"unterminated"
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "{\n  \"k00\": \"v0\",\n  \"k01\": \"v1\",\n  \"k02\": \"v2\",\n  \"k03\": \"v3\",\n  \"k04\": \"v4\",\n  \"k05\": \"v5\",\n  \"k06\": \"v6\",\n  \"k07\": \"v7\",\n  \"k08\": \"v8\",\n  \"k09\": \"v9\",\n  \"k10\": \"v10\",\n  \"k11\": \"v11\",\n  \"k12\": \"v12\",\n  \"k13\": \"v13\",\n  \"k14\": \"v14\",\n  \"k15\": \"v15\",\n  \"k16\": \"v16\",\n  \"k17\": \"v17\",\n  \"k18\": \"v18\",\n  \"k19\": \"v19\",\n  \"tail\": \"unterminated"
+    }
+  },
+  {
+    "name": "json-trailing-garbage",
+    "message": {
+      "role": "user",
+      "content": "{\"k00\": \"v0\", \"k01\": \"v1\", \"k02\": \"v2\", \"k03\": \"v3\", \"k04\": \"v4\", \"k05\": \"v5\", \"k06\": \"v6\", \"k07\": \"v7\", \"k08\": \"v8\", \"k09\": \"v9\", \"k10\": \"v10\", \"k11\": \"v11\", \"k12\": \"v12\", \"k13\": \"v13\", \"k14\": \"v14\", \"k15\": \"v15\", \"k16\": \"v16\", \"k17\": \"v17\", \"k18\": \"v18\", \"k19\": \"v19\"} leftover"
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "{\"k00\": \"v0\", \"k01\": \"v1\", \"k02\": \"v2\", \"k03\": \"v3\", \"k04\": \"v4\", \"k05\": \"v5\", \"k06\": \"v6\", \"k07\": \"v7\", \"k08\": \"v8\", \"k09\": \"v9\", \"k10\": \"v10\", \"k11\": \"v11\", \"k12\": \"v12\", \"k13\": \"v13\", \"k14\": \"v14\", \"k15\": \"v15\", \"k16\": \"v16\", \"k17\": \"v17\", \"k18\": \"v18\", \"k19\": \"v19\"} leftover"
+    }
+  },
+  {
+    "name": "system-untouched",
+    "message": {
+      "role": "system",
+      "content": "rule one\r\nrule two\u001b[31m"
+    },
+    "json": true,
+    "output": {
+      "role": "system",
+      "content": "rule one\r\nrule two\u001b[31m"
+    }
+  },
+  {
+    "name": "openai-tool-ansi",
+    "message": {
+      "role": "tool",
+      "tool_call_id": "call_9",
+      "content": "\u001b[32mok 12 files written\u001b[0m"
+    },
+    "json": true,
+    "output": {
+      "role": "tool",
+      "tool_call_id": "call_9",
+      "content": "ok 12 files written"
+    }
+  },
+  {
+    "name": "prose-tool-result-zwsp",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t1",
+          "content": [
+            {
+              "type": "text",
+              "text": "first part​\n\n\n\n\nsecond part"
+            },
+            {
+              "type": "image",
+              "source": {
+                "data": "aW1hZ2U="
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "t1",
+          "content": [
+            {
+              "type": "text",
+              "text": "first part\n\nsecond part"
+            },
+            {
+              "type": "image",
+              "source": {
+                "data": "aW1hZ2U="
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "block-array-tool-use-untouched",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "check this\r\noutput"
+        },
+        {
+          "type": "tool_use",
+          "id": "u1",
+          "name": "run",
+          "input": {
+            "cmd": "a\r\nb"
+          }
+        }
+      ]
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "check this\noutput"
+        },
+        {
+          "type": "tool_use",
+          "id": "u1",
+          "name": "run",
+          "input": {
+            "cmd": "a\r\nb"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "zwnj-zwj-untouched",
+    "message": {
+      "role": "user",
+      "content": "متن فارسی با نیم‌فاصله نوشته شده است.\nFamily emoji: 👨‍👩‍👧 stays joined."
+    },
+    "json": true,
+    "output": {
+      "role": "user",
+      "content": "متن فارسی با نیم‌فاصله نوشته شده است.\nFamily emoji: 👨‍👩‍👧 stays joined."
+    }
+  }
+]

@@ -160,6 +160,45 @@
     "method": "below-threshold"
   },
   {
+    "name": "normalize-before-dedup",
+    "config": {
+      "mode": "on",
+      "trigger": {
+        "thresholdTokens": 10
+      },
+      "protect": {
+        "lastTurns": 1
+      }
+    },
+    "input": [
+      {
+        "role": "user",
+        "content": "same output here\r\nsecond line of it"
+      },
+      {
+        "role": "user",
+        "content": "same output here\nsecond line of it"
+      },
+      {
+        "role": "user",
+        "content": "what changed?"
+      }
+    ],
+    "output": [
+      {
+        "role": "user",
+        "content": "same output here\nsecond line of it"
+      },
+      {
+        "role": "user",
+        "content": "what changed?"
+      }
+    ],
+    "inputTokens": 22,
+    "outputTokens": 13,
+    "method": "verbatim"
+  },
+  {
     "name": "protect-default",
     "config": {
       "mode": "on",

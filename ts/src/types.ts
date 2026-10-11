@@ -67,6 +67,12 @@ export interface LeanpromptConfig {
         fetchImpl?: typeof fetch;
     };
     strategies?: {
+        /**
+         * Lossless cleanup pass, runs first. `false` disables it entirely;
+         * `{ json: false }` disables only the JSON whitespace minification
+         * (N5) on structured messages. Default true.
+         */
+        normalize?: boolean | { json?: boolean };
         dedup?: boolean;
         purgeErrors?: boolean | { afterTurns?: number };
     };

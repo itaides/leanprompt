@@ -9,7 +9,7 @@ use crate::compressors::Compressor;
 use crate::json::Value;
 use crate::router::Router;
 use crate::stats::CompressionStats;
-use crate::strategies::{DedupStrategy, PurgeErrorsStrategy, Strategy};
+use crate::strategies::{DedupStrategy, NormalizeStrategy, PurgeErrorsStrategy, Strategy};
 use crate::tokens::count_message_tokens;
 
 const DEFAULT_THRESHOLD_TOKENS: i64 = 2000;
@@ -25,6 +25,10 @@ pub struct Config {
     pub routing: Vec<(String, String)>,
     pub extract_ratio_millis: i64,
     pub protect_last_turns: usize,
+    /// Lossless cleanup pass, runs before dedup.
+    pub normalize: bool,
+    /// N5 (JSON whitespace minification) inside normalize.
+    pub normalize_json: bool,
     pub dedup: bool,
     /// None disables purge; Some(n) purges errors older than n turns.
     pub purge_errors_after_turns: Option<usize>,
@@ -38,6 +42,8 @@ impl Default for Config {
             routing: Vec::new(),
             extract_ratio_millis: 500,
             protect_last_turns: DEFAULT_PROTECT_LAST_TURNS,
+            normalize: true,
+            normalize_json: true,
             dedup: true,
             purge_errors_after_turns: Some(4),
         }
@@ -83,6 +89,13 @@ impl Middleware {
 
         let mut strategies: Vec<Box<dyn Strategy>> = Vec::new();
         if active {
+            // Normalize runs first: CRLF/ANSI variants of the same output
+            // should dedup to one message.
+            if config.normalize {
+                strategies.push(Box::new(NormalizeStrategy {
+                    json: config.normalize_json,
+                }));
+            }
             if config.dedup {
                 strategies.push(Box::new(DedupStrategy));
             }

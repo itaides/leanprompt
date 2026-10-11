@@ -17,7 +17,11 @@ import { classify, RepeatTracker } from "../src/classifier.js";
 import { Extract, segmentSentences, selectSentences, wordTokens } from "../src/compressors/extract.js";
 import { getTextContent } from "../src/content.js";
 import { Middleware } from "../src/middleware.js";
-import { DedupStrategy, PurgeErrorsStrategy } from "../src/strategies.js";
+import {
+    DedupStrategy,
+    NormalizeStrategy,
+    PurgeErrorsStrategy,
+} from "../src/strategies.js";
 import { countTokens } from "../src/tokens.js";
 import type { ChatMessage } from "../src/types.js";
 
@@ -325,6 +329,173 @@ emit(
     });
 }
 
+// Normalize: one input message → one output message per case. `json`
+// (default true) toggles the N5 minification rule; classification is
+// per-message on the original content.
+{
+    const PRETTY_JSON = [
+        "{",
+        '  "name": "svc",',
+        '  "note": "  spaced  \\"quoted\\" text  ",',
+        '  "bignum": 12345678901234567890,',
+        '  "tags": [',
+        '    "alpha",',
+        '    "beta"',
+        '  ],',
+        '  "nested": {',
+        '    "x": 1,',
+        '    "y": 2',
+        '  },',
+        '  "padding": "filler text to push this blob past the two hundred character minimum for the structured classifier gate"',
+        "}",
+    ].join("\n");
+    const cases: Array<{ name: string; message: ChatMessage; json?: boolean }> = [
+        {
+            name: "crlf",
+            message: { role: "user", content: "first line\r\nsecond line\r\nthird line" },
+        },
+        {
+            // ANSI-colored stack trace: ERROR class, so only N1/N2 run —
+            // the ZWSP and the 4-newline run must survive.
+            name: "ansi-error",
+            message: {
+                role: "user",
+                content:
+                    "[31mTraceback (most recent call last):[0m\n" +
+                    '  File "x.py", line 1[2m, in <module>[0m\n' +
+                    "ValueError: nope​\n\n\n\ntail]8;;http://example.comlink]8;;",
+            },
+        },
+        {
+            name: "prose-invisibles-blank-run",
+            message: {
+                role: "user",
+                content:
+                    "The first​ paragraph has invisible⁠ marks.﻿\n" +
+                    "A markdown hard break ends this line.  \n\n\n\n\n" +
+                    "The second paragraph starts here.",
+            },
+        },
+        {
+            // CODE class: N1 still applies, the \n\n\n\n inside the
+            // template literal must NOT collapse.
+            name: "code-template-blank-run",
+            message: {
+                role: "user",
+                content: "```ts\r\nconst s = `a\n\n\n\nb`;\r\nexport default s;\n```",
+            },
+        },
+        {
+            name: "structured-json-minify",
+            message: { role: "user", content: PRETTY_JSON },
+        },
+        {
+            // Same blob with N5 disabled: untouched.
+            name: "structured-json-disabled",
+            json: false,
+            message: { role: "user", content: PRETTY_JSON },
+        },
+        {
+            // STRUCTURED class but unbalanced: minification must bail.
+            name: "malformed-json-unchanged",
+            message: {
+                role: "user",
+                content:
+                    "{\n" +
+                    Array.from(
+                        { length: 20 },
+                        (_, i) => `  "k${String(i).padStart(2, "0")}": "v${i}",`,
+                    ).join("\n") +
+                    '\n  "tail": "unterminated',
+            },
+        },
+        {
+            // Balanced prefix then trailing garbage: also a bail.
+            name: "json-trailing-garbage",
+            message: {
+                role: "user",
+                content:
+                    "{" +
+                    Array.from(
+                        { length: 20 },
+                        (_, i) => `"k${String(i).padStart(2, "0")}": "v${i}"`,
+                    ).join(", ") +
+                    "} leftover",
+            },
+        },
+        {
+            // system is never modified — not even by N1/N2.
+            name: "system-untouched",
+            message: { role: "system", content: "rule one\r\nrule two[31m" },
+        },
+        {
+            name: "openai-tool-ansi",
+            message: {
+                role: "tool",
+                tool_call_id: "call_9",
+                content: "[32mok 12 files written[0m",
+            },
+        },
+        {
+            // PROSE-classified message: N3/N4 apply inside nested
+            // tool_result text blocks; linkage ids and non-text blocks
+            // are preserved.
+            name: "prose-tool-result-zwsp",
+            message: {
+                role: "user",
+                content: [
+                    {
+                        type: "tool_result",
+                        tool_use_id: "t1",
+                        content: [
+                            { type: "text", text: "first part​\n\n\n\n\nsecond part" },
+                            { type: "image", source: { data: "aW1hZ2U=" } },
+                        ],
+                    },
+                ],
+            },
+        },
+        {
+            // text blocks normalize; tool_use.input is never touched.
+            name: "block-array-tool-use-untouched",
+            message: {
+                role: "user",
+                content: [
+                    { type: "text", text: "check this\r\noutput" },
+                    {
+                        type: "tool_use",
+                        id: "u1",
+                        name: "run",
+                        input: { cmd: "a\r\nb" },
+                    },
+                ],
+            },
+        },
+        {
+            // ZWNJ (Persian) and ZWJ (emoji) are real content — kept.
+            name: "zwnj-zwj-untouched",
+            message: {
+                role: "user",
+                content:
+                    "متن فارسی با نیم‌فاصله نوشته شده است.\n" +
+                    "Family emoji: 👨‍👩‍👧 stays joined.",
+            },
+        },
+    ];
+    emit(
+        "normalize.json",
+        cases.map((c) => {
+            const json = c.json ?? true;
+            return {
+                name: c.name,
+                message: c.message,
+                json,
+                output: new NormalizeStrategy(json).apply([c.message])[0],
+            };
+        }),
+    );
+}
+
 // Extract: segmentation, word tokens and selection per case, plus full
 // block-aware compression of a mixed message.
 emit(
@@ -400,6 +571,21 @@ emit("word-tokens.json", [
                 { role: "user", content: "hello" },
                 { role: "assistant", content: "hi" },
                 { role: "user", content: "hello" },
+            ],
+        },
+        {
+            // Normalize runs before dedup: two outputs identical except
+            // CRLF vs LF collapse to a single message.
+            name: "normalize-before-dedup",
+            config: {
+                mode: "on",
+                trigger: { thresholdTokens: 10 },
+                protect: { lastTurns: 1 },
+            },
+            input: [
+                { role: "user", content: "same output here\r\nsecond line of it" },
+                { role: "user", content: "same output here\nsecond line of it" },
+                { role: "user", content: "what changed?" },
             ],
         },
         {

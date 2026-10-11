@@ -128,8 +128,51 @@ Config{ProtectLastTurnsDisabled: true} // disable recency protection
 ## `strategies` — pre-compression filters, applied before classification/routing
 
 Run in this order, after the threshold gate and before per-message
-classification/routing: **dedup**, then **purgeErrors**. A call under
-`trigger.thresholdTokens` never runs them.
+classification/routing: **normalize**, then **dedup**, then **purgeErrors**.
+A call under `trigger.thresholdTokens` never runs them.
+
+### `strategies.normalize` (TS) / `normalize` + `normalize_json` (Rust) / `NormalizeDisabled` + `NormalizeJSONDisabled` (Go, inverted)
+
+Lossless cleanup ("level 0"), on by default. Rewrites every compressible
+text span of every message except `role == "system"` (never modified):
+string `content`, `text` block `text` fields, string `tool_result`
+content, and recursively into `tool_result` arrays. `tool_use.input`,
+image, thinking, document and unknown blocks are untouched. Which rules
+apply is gated by the message's own classifier class, computed on the
+original message before rewriting:
+
+- **N1** (all classes): `\r\n` → `\n`, then lone `\r` → `\n`.
+- **N2** (all classes): ANSI escape removal — CSI, OSC (terminated by BEL
+  or `ESC \`; unterminated runs to end of span), and two-byte Fe
+  sequences. Malformed or unterminated CSI is left alone.
+- **N3** (prose only): removes U+200B ZWSP, U+2060 WJ, U+FEFF ZWNBSP —
+  also closes a prompt-injection hiding channel. ZWNJ/ZWJ are kept
+  (Persian/Indic orthography, emoji sequences).
+- **N4** (prose only): collapses runs of 3+ newlines to exactly 2;
+  whitespace-only lines count as empty. Trailing whitespace on non-empty
+  lines (markdown hard breaks) survives.
+- **N5** (structured only): JSON whitespace minification — removes
+  space/\t/\n/\r outside strings when the span starts with `{`/`[` and
+  parses as one complete balanced value. String contents, key order and
+  number literals are byte-identical; malformed input passes through
+  unchanged. Disable it alone with `{ json: false }` / `normalize_json:
+  false` / `NormalizeJSONDisabled`.
+
+Runs **before** dedup so CRLF/ANSI variants of the same tool output dedup
+to a single message. **Default: `true`** (enabled, with `json` enabled).
+
+```ts
+{ strategies: { normalize: false } }              // off entirely
+{ strategies: { normalize: { json: false } } }    // N5 only off
+```
+```rust
+Config { normalize: false, ..Config::default() }           // off entirely
+Config { normalize_json: false, ..Config::default() }      // N5 only off
+```
+```go
+Config{NormalizeDisabled: true}      // off entirely
+Config{NormalizeJSONDisabled: true}  // N5 only off
+```
 
 ### `strategies.dedup` (TS) / `dedup` (Rust) / `DedupDisabled` (Go, inverted)
 
@@ -236,7 +279,7 @@ defaults to the global `fetch`; override it in tests.
   routing: { prose: "extract", structured: "verbatim" },
   extract: { ratio: 0.4 },
   protect: { lastTurns: 3 },
-  strategies: { dedup: true, purgeErrors: { afterTurns: 6 } },
+  strategies: { normalize: true, dedup: true, purgeErrors: { afterTurns: 6 } },
   selfllm: { provider: "anthropic", model: "claude-haiku-4-5", ratio: 0.25 },
 }
 ```

@@ -215,6 +215,56 @@ describe("Middleware strategies integration", () => {
         expect(out).toHaveLength(2);
     });
 
+    test("normalize runs before dedup: CRLF/LF twins collapse to one", () => {
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            protect: { lastTurns: 1 },
+        });
+        const [out] = mw.compressMessages([
+            msg("same output here\r\nsecond line of it"),
+            msg("same output here\nsecond line of it"),
+            msg("tail question"),
+        ]);
+        expect(out).toHaveLength(2);
+        expect(out[0]!.content).toBe("same output here\nsecond line of it");
+    });
+
+    test("strategies.normalize: false leaves content untouched", () => {
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            strategies: { normalize: false },
+            protect: { lastTurns: 0 },
+        });
+        const [out] = mw.compressMessages([msg("a\r\nb\rc")]);
+        expect(out[0]!.content).toBe("a\r\nb\rc");
+    });
+
+    test("strategies.normalize: { json: false } disables only minification", () => {
+        const pretty =
+            "{\n" +
+            Array.from({ length: 20 }, (_, i) => `  "k${i}": "v ${i}",`).join("\n") +
+            '\n  "tail": "v"\n}';
+        const mw = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            strategies: { normalize: { json: false } },
+            protect: { lastTurns: 0 },
+        });
+        const [off] = mw.compressMessages([msg(pretty)]);
+        expect(off[0]!.content).toBe(pretty);
+
+        const mwOn = new Middleware({
+            mode: "on",
+            trigger: { thresholdTokens: 10 },
+            protect: { lastTurns: 0 },
+        });
+        const [on] = mwOn.compressMessages([msg(pretty)]);
+        expect(on[0]!.content).not.toBe(pretty);
+        expect(on[0]!.content).not.toContain("\n");
+    });
+
     test("dedup savings count in stats: inputTokens counts pre-strategy messages", () => {
         const mw = new Middleware({
             mode: "on",

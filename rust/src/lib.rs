@@ -28,4 +28,4 @@ pub use json::Value;
 pub use middleware::{Config, Middleware};
 pub use router::Router;
 pub use stats::CompressionStats;
-pub use strategies::{DedupStrategy, PurgeErrorsStrategy, Strategy};
+pub use strategies::{DedupStrategy, NormalizeStrategy, PurgeErrorsStrategy, Strategy};

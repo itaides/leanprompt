@@ -169,6 +169,10 @@ dedup/purge wins:
 - prose-heavy histories: roughly **40–50%** at the default keep-ratio 0.5
 - code/tool-heavy agent histories: substantially less — measure on your own
   traffic before quoting a number
+- the always-on `normalize` pass adds small *lossless* savings even where
+  extractive compression never runs: CRLF/ANSI cleanup on code and error
+  output, invisible-character and blank-line removal on prose, and
+  whitespace minification on balanced JSON blobs
 
 Token counts (the trigger threshold and every `leanprompt*` telemetry field)
 come from a zero-dependency heuristic estimator, not the provider's actual

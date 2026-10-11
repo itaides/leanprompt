@@ -1,7 +1,28 @@
 import { describe, expect, test } from "bun:test";
-import { DedupStrategy, PurgeErrorsStrategy } from "../src/strategies.js";
+import {
+    DedupStrategy,
+    NormalizeStrategy,
+    PurgeErrorsStrategy,
+} from "../src/strategies.js";
 
 const msg = (content: unknown, role = "user") => ({ role, content });
+
+const ESC = String.fromCodePoint(0x1b);
+const BEL = String.fromCodePoint(0x07);
+const ZWSP = String.fromCodePoint(0x200b);
+const WJ = String.fromCodePoint(0x2060);
+const BOM = String.fromCodePoint(0xfeff);
+const ZWNJ = String.fromCodePoint(0x200c);
+const ZWJ = String.fromCodePoint(0x200d);
+
+/** A JSON blob long/dense enough to classify STRUCTURED. */
+function prettyJson(entries = 12): string {
+    const lines = Array.from(
+        { length: entries },
+        (_, i) => `  "key${String(i).padStart(2, "0")}": "value ${i}"`,
+    );
+    return `{\n${lines.join(",\n")},\n  "big": 12345678901234567890\n}`;
+}
 
 describe("DedupStrategy", () => {
     test("drops later duplicates, keeps first", () => {
@@ -160,6 +181,212 @@ describe("PurgeErrorsStrategy", () => {
             type: "tool_result",
             tool_use_id: "t3",
             content: "[errored output purged for context compaction]",
+        });
+    });
+});
+
+describe("NormalizeStrategy", () => {
+    const norm = (content: unknown, role = "user", s = new NormalizeStrategy()) =>
+        s.apply([msg(content, role)])[0]!;
+
+    describe("N1 line endings", () => {
+        test("CRLF and lone CR become LF", () => {
+            expect(norm("a\r\nb\rc\nd").content).toBe("a\nb\nc\nd");
+        });
+    });
+
+    describe("N2 ANSI escapes", () => {
+        test("CSI color codes", () => {
+            expect(norm(`${ESC}[31mred${ESC}[0m plain`).content).toBe("red plain");
+        });
+
+        test("CSI with params, intermediates and final", () => {
+            expect(norm(`a${ESC}[1;2Hb`).content).toBe("ab");
+            expect(norm(`a${ESC}[?25lb`).content).toBe("ab");
+            expect(norm(`a${ESC}[!pb`).content).toBe("ab");
+        });
+
+        test("OSC terminated by BEL", () => {
+            expect(norm(`a${ESC}]0;title${BEL}b`).content).toBe("ab");
+        });
+
+        test("OSC terminated by ST", () => {
+            expect(norm(`a${ESC}]0;title${ESC}\\b`).content).toBe("ab");
+        });
+
+        test("unterminated OSC removed through end of span", () => {
+            expect(norm(`a${ESC}]0;payload`).content).toBe("a");
+        });
+
+        test("ESC inside OSC payload not followed by backslash is payload", () => {
+            expect(norm(`a${ESC}]8;;x${ESC}y${BEL}b`).content).toBe("ab");
+        });
+
+        test("two-byte Fe sequences", () => {
+            expect(norm(`a${ESC}Pb`).content).toBe("ab");
+            expect(norm(`${ESC}\\`).content).toBe("");
+        });
+
+        test("malformed CSI and other ESC uses stay", () => {
+            expect(norm(`a${ESC}[31`).content).toBe(`a${ESC}[31`);
+            expect(norm(`a${ESC}(B`).content).toBe(`a${ESC}(B`);
+            expect(norm(`a${ESC}`).content).toBe(`a${ESC}`);
+        });
+    });
+
+    describe("N3 invisible characters (prose only)", () => {
+        test("ZWSP, WJ and ZWNBSP are removed", () => {
+            expect(norm(`a${ZWSP}b${WJ}c${BOM}d`).content).toBe("abcd");
+        });
+
+        test("ZWNJ and ZWJ are kept", () => {
+            expect(norm(`a${ZWNJ}b${ZWJ}c`).content).toBe(`a${ZWNJ}b${ZWJ}c`);
+        });
+    });
+
+    describe("N4 blank-line collapse (prose only)", () => {
+        test("3+ newlines collapse to 2", () => {
+            expect(norm("a\n\n\n\nb").content).toBe("a\n\nb");
+        });
+
+        test("whitespace-only lines count as empty", () => {
+            expect(norm("a\n  \n \t\nb").content).toBe("a\n\nb");
+        });
+
+        test("markdown hard break survives", () => {
+            expect(norm("a  \n\n\nb").content).toBe("a  \n\nb");
+        });
+
+        test("single blank line stays", () => {
+            expect(norm("a\n\nb").content).toBe("a\n\nb");
+        });
+
+        test("whitespace at span edges not between newlines is kept", () => {
+            expect(norm("  \n\nb\n   ").content).toBe("  \n\nb\n   ");
+        });
+    });
+
+    describe("class gating", () => {
+        test("ERROR gets N1/N2 only", () => {
+            const input = `Error: boom${ZWSP}\n\n\n\n${ESC}[31mx${ESC}[0m`;
+            expect(norm(input).content).toBe(`Error: boom${ZWSP}\n\n\n\nx`);
+        });
+
+        test("CODE gets N1/N2 only — blank runs survive", () => {
+            const input = "```\r\nconst a = `x\n\n\n\ny`;\n```";
+            expect(norm(input).content).toBe("```\nconst a = `x\n\n\n\ny`;\n```");
+        });
+    });
+
+    describe("N5 JSON minification (structured only)", () => {
+        test("pretty JSON minifies, string internals and numbers verbatim", () => {
+            const input = prettyJson();
+            const expected =
+                "{" +
+                Array.from(
+                    { length: 12 },
+                    (_, i) => `"key${String(i).padStart(2, "0")}":"value ${i}"`,
+                ).join(",") +
+                ',"big":12345678901234567890}';
+            expect(norm(input).content).toBe(expected);
+        });
+
+        test("escapes and inner whitespace inside strings are preserved", () => {
+            const input =
+                `{ "a": "x \\"q\\"  y",` +
+                Array.from({ length: 20 }, (_, i) => ` "k${i}": "v ${i}"`).join(",") +
+                " }";
+            const expected =
+                `{"a":"x \\"q\\"  y",` +
+                Array.from({ length: 20 }, (_, i) => `"k${i}":"v ${i}"`).join(",") +
+                "}";
+            expect(norm(input).content).toBe(expected);
+        });
+
+        test("unbalanced input left unchanged", () => {
+            const input = `{\n${Array.from({ length: 20 }, (_, i) => `  "k${i}": 1,`).join("\n")}`;
+            expect(norm(input).content).toBe(input);
+        });
+
+        test("unterminated string left unchanged", () => {
+            const input =
+                `{ "a": "ok",` +
+                Array.from({ length: 20 }, (_, i) => ` "k${i}": 1`).join(",") +
+                `, "tail": "open`;
+            expect(norm(input).content).toBe(input);
+        });
+
+        test("trailing garbage left unchanged", () => {
+            const input =
+                "{" +
+                Array.from({ length: 20 }, (_, i) => `"k${i}": 1`).join(",") +
+                "} oops";
+            expect(norm(input).content).toBe(input);
+        });
+
+        test("non-{ start is not attempted", () => {
+            const input =
+                "note first " +
+                Array.from({ length: 20 }, (_, i) => `"k${i}": 1`).join(", ");
+            expect(norm(input).content).toBe(input);
+        });
+
+        test("json: false disables N5 only", () => {
+            const s = new NormalizeStrategy(false);
+            expect(norm(prettyJson(), "user", s).content).toBe(prettyJson());
+        });
+    });
+
+    describe("span walk", () => {
+        test("system messages are never modified", () => {
+            const m = msg(`a\r\nb${ESC}[31m`, "system");
+            expect(new NormalizeStrategy().apply([m])[0]).toBe(m);
+        });
+
+        test("tool_result string and nested arrays rewrite, ids preserved", () => {
+            const m = msg([
+                {
+                    type: "tool_result",
+                    tool_use_id: "t1",
+                    content: [
+                        { type: "text", text: `one${ZWSP}\n\n\n\ntwo` },
+                        { type: "image", source: { data: "x" } },
+                    ],
+                },
+            ]);
+            const out = new NormalizeStrategy().apply([m])[0]!;
+            const inner = (out.content as Array<Record<string, unknown>>)[0]!;
+            expect(inner.tool_use_id).toBe("t1");
+            const blocks = inner.content as Array<Record<string, unknown>>;
+            expect(blocks[0]!.text).toBe("one\n\ntwo");
+            expect(blocks[1]).toEqual({ type: "image", source: { data: "x" } });
+        });
+
+        test("tool_use.input is untouched", () => {
+            const m = msg([
+                { type: "text", text: "a\r\nb" },
+                { type: "tool_use", id: "u", name: "run", input: { cmd: "x\r\ny" } },
+            ]);
+            const out = new NormalizeStrategy().apply([m])[0]!;
+            const blocks = out.content as Array<Record<string, unknown>>;
+            expect(blocks[0]!.text).toBe("a\nb");
+            expect(blocks[1]).toEqual({
+                type: "tool_use",
+                id: "u",
+                name: "run",
+                input: { cmd: "x\r\ny" },
+            });
+        });
+
+        test("does not mutate the input messages", () => {
+            const m = msg("a\r\nb");
+            new NormalizeStrategy().apply([m]);
+            expect(m.content).toBe("a\r\nb");
+        });
+
+        test("unchanged messages keep object identity", () => {
+            const m = msg("plain text");
+            expect(new NormalizeStrategy().apply([m])[0]).toBe(m);
         });
     });
 });

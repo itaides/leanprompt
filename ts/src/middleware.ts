@@ -7,7 +7,7 @@
  *   1. Check mode (off → passthrough)
  *   2. Count input tokens on the ORIGINAL message list
  *   3. Check token budget (below threshold → passthrough, untouched)
- *   4. Apply strategies (dedup, purge-errors)
+ *   4. Apply strategies (normalize, dedup, purge-errors)
  *   5. For each message: classify() → Router picks a Compressor → compress
  *   6. Aggregate stats and return -- inputTokens stays the pre-strategy
  *      count, so dedup/purge savings count toward tokensSaved.
@@ -20,7 +20,11 @@ import { Verbatim } from "./compressors/verbatim.js";
 import { Router } from "./router.js";
 import type { CompressionStats } from "./stats.js";
 import { makeStats } from "./stats.js";
-import { DedupStrategy, PurgeErrorsStrategy } from "./strategies.js";
+import {
+    DedupStrategy,
+    NormalizeStrategy,
+    PurgeErrorsStrategy,
+} from "./strategies.js";
 import type { Strategy } from "./strategies.js";
 import { countMessageTokens } from "./tokens.js";
 import { CONTENT_TYPE_VALUES, ContentType } from "./types.js";
@@ -237,6 +241,17 @@ export class Middleware {
 function buildStrategies(config: LeanpromptConfig): Strategy[] {
     const strategiesCfg = config.strategies ?? {};
     const out: Strategy[] = [];
+
+    // Normalize runs first: CRLF/ANSI variants of the same output should
+    // dedup to one message.
+    const normalizeCfg = strategiesCfg.normalize ?? true;
+    if (normalizeCfg) {
+        let json = true;
+        if (typeof normalizeCfg === "object") {
+            json = normalizeCfg.json ?? true;
+        }
+        out.push(new NormalizeStrategy(json));
+    }
 
     if (strategiesCfg.dedup ?? true) {
         out.push(new DedupStrategy());

@@ -34,7 +34,11 @@ export { makeStats, passthroughStats } from "./stats.js";
 
 export { classify, RepeatTracker } from "./classifier.js";
 export { Router } from "./router.js";
-export { DedupStrategy, PurgeErrorsStrategy } from "./strategies.js";
+export {
+    DedupStrategy,
+    NormalizeStrategy,
+    PurgeErrorsStrategy,
+} from "./strategies.js";
 export type { Strategy } from "./strategies.js";
 
 export type { Compressor, CompressResult } from "./compressors/base.js";

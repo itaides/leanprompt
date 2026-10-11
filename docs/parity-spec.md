@@ -109,6 +109,53 @@ and messages with empty extracted text.
 
 ## 7. Strategies (`strategies`)
 
+- **normalize**: lossless cleanup ("level 0"), runs FIRST — before dedup,
+  so CRLF/ANSI variants of the same output dedup to one. Default ON.
+  Rewrites every compressible text span of every message EXCEPT messages
+  with `role == "system"` (system is never modified). Spans are the same
+  walk `purge_errors` uses: string `content`, `text` block `text` fields,
+  string `tool_result` content, recursively into `tool_result` arrays, and
+  a single-object `content` treated as one block. `tool_use.input`, image,
+  thinking, document and unknown blocks are untouched. Spans are rewritten
+  in place; block/message shape and all other fields are preserved. The
+  message's classifier class (§6, unchanged) is computed on the ORIGINAL
+  message before any rewriting and gates which transforms apply.
+
+  Applied to every non-system span regardless of class:
+  - **N1** `\r\n` → `\n`, then remaining lone `\r` → `\n`.
+  - **N2** ANSI escape removal. CSI: `ESC [` + params (`0x30–0x3F`)\* +
+    intermediates (`0x20–0x2F`)\* + final (`0x40–0x7E`); a sequence without
+    a valid final byte is not an escape — the `ESC` and everything after
+    it are left as-is. OSC: `ESC ]` + payload terminated by `BEL` (`0x07`)
+    or ST (`ESC \`); an unterminated OSC is removed through the end of the
+    span, and an `ESC` inside the payload not followed by `\` is payload.
+    Fe: bare `ESC` followed by a single char in `0x40–0x5F` removes both
+    bytes. Other uses of `0x1B` are left as-is.
+  Applied only when the message classifies as PROSE:
+  - **N3** remove U+200B (ZWSP), U+2060 (WJ), U+FEFF (ZWNBSP). U+200C and
+    U+200D (ZWNJ/ZWJ) are kept — real Persian/Indic text and emoji
+    sequences need them.
+  - **N4** collapse runs of 3+ consecutive `\n` into exactly 2, where lines
+    containing only spaces/tabs between newlines count as empty (their
+    whitespace is stripped as part of the run). A run of exactly 2
+    newlines becomes `\n\n` with any interleaved whitespace-only content
+    stripped. Trailing whitespace on non-empty lines is never stripped
+    (markdown hard breaks), and whitespace at the very start/end of the
+    span is left alone — only whitespace bounded by newlines on both
+    sides is touched.
+  Applied only when the message classifies as STRUCTURED:
+  - **N5** JSON whitespace minification, lossless by construction. If the
+    span's first non-{space, `\t`, `\n`, `\r`} code point is `{` or `[`,
+    scan it tracking string state (`"` toggles; `\` escapes the next code
+    point); remove every code point in {space, `\t`, `\n`, `\r`} outside
+    strings. The result must be a complete balanced value: depth (from
+    `{`/`[` +1 and `}`/`]` −1, counting outside strings only) returns to 0
+    at the final non-whitespace code point. On any failure — negative or
+    unclosed depth, unterminated string, or non-whitespace after depth
+    reached 0 (trailing garbage) — the span is left unchanged. Numbers are
+    never parsed; key order is never touched. Disabled by the
+    `json: false` / `normalize_json` config toggle; N1/N2 still apply.
+
 - **dedup**: fresh tracker per call; keep first occurrence.
 - **purge_errors(afterTurns=4)**: if `len(messages) <= afterTurns` return
   unchanged. Otherwise, for each message with index `< len - afterTurns`:
@@ -201,8 +248,8 @@ Pipeline: mode gate (`off`/`passthrough`/`disabled` → passthrough) → empty
 list → `empty` → `inputTokens = countMessageTokens(original messages)` →
 token threshold (default 2000; `inputTokens < threshold` → return the
 ORIGINAL list untouched, method `below-threshold`, inputTokens =
-outputTokens, ratio 1.0) → strategies (dedup default on, purge default on
-with afterTurns=4) → now-empty list → `empty` (inputTokens as counted,
+outputTokens, ratio 1.0) → strategies, applied in order normalize → dedup
+→ purge (each default ON; purge with afterTurns=4) → now-empty list → `empty` (inputTokens as counted,
 outputTokens 0, ratio 0) → per-message classify/route/compress →
 aggregate.
 

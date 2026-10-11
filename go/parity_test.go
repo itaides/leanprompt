@@ -111,6 +111,22 @@ func TestStrategyVectors(t *testing.T) {
 	}
 }
 
+func TestNormalizeVectors(t *testing.T) {
+	var cases []struct {
+		Name    string  `json:"name"`
+		Message Message `json:"message"`
+		JSON    bool    `json:"json"`
+		Output  Message `json:"output"`
+	}
+	load(t, "normalize.json", &cases)
+	for _, c := range cases {
+		out := NormalizeStrategy{JSONDisabled: !c.JSON}.Apply([]Message{c.Message})
+		if len(out) != 1 || !reflect.DeepEqual(out[0], c.Output) {
+			t.Errorf("normalize %s:\n got %v\nwant %v", c.Name, out, c.Output)
+		}
+	}
+}
+
 func TestExtractVectors(t *testing.T) {
 	var cases []struct {
 		Name        string `json:"name"`

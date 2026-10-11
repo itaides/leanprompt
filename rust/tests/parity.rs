@@ -10,7 +10,7 @@ use leanprompt::compressors::extract::{
 };
 use leanprompt::json::{parse, Value};
 use leanprompt::middleware::{Config, Middleware};
-use leanprompt::strategies::{DedupStrategy, PurgeErrorsStrategy, Strategy};
+use leanprompt::strategies::{DedupStrategy, NormalizeStrategy, PurgeErrorsStrategy, Strategy};
 use leanprompt::tokens::count_tokens;
 use leanprompt::{classify, content, RepeatTracker};
 
@@ -107,6 +107,19 @@ fn strategy_vectors() {
     let purge_expected = data.get("purgeAfter2").and_then(Value::as_arr).unwrap();
     let purge_actual = PurgeErrorsStrategy { after_turns: 2 }.apply(input);
     assert_eq!(purge_actual.as_slice(), purge_expected, "purge output");
+}
+
+#[test]
+fn normalize_vectors() {
+    for case in cases(&load("normalize.json")) {
+        let name = case.str_field("name");
+        let json = case.get("json").and_then(Value::as_bool).unwrap_or(true);
+        let input = case.get("message").expect("message");
+        let expected = case.get("output").expect("output");
+        let out = NormalizeStrategy { json }.apply(vec![input.clone()]);
+        assert_eq!(out.len(), 1, "normalize case {name}");
+        assert_eq!(&out[0], expected, "normalize case {name}");
+    }
 }
 
 #[test]

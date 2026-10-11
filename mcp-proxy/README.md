@@ -18,6 +18,30 @@ Claude Desktop ──stdio──▶ leanprompt-mcp-proxy ──stdio──▶ re
 | `tasks/result` payload (a completed task's deferred result) | Compressed the same way as a direct `tools/call` result once it's actually retrieved |
 | `tasks/get` (status/polling) | Passed straight through — no payload to compress |
 | `sampling/createMessage` request (server → client) | Compressed the same way before being relayed to the connected client |
+| `leanprompt_expand` (our own tool) | Returns the original, uncompressed content of any compressed result, by ref |
+
+## Getting the original back (`leanprompt_expand`)
+
+Whenever the proxy actually compresses a tool result, it appends one text
+block telling the model what happened and how to get the full output back:
+
+```
+[leanprompt] This tool result was compressed from 520 to 78 estimated
+tokens (85% removed). Only prose was condensed; code, JSON and errors were
+kept verbatim. If a detail seems missing, call the leanprompt_expand tool
+with ref "lp-k3m2004f" to get the original output.
+```
+
+`leanprompt_expand` is listed in `tools/list` alongside the wrapped
+server's tools (and is the only tool when the wrapped server exposes
+none). Calling it with a live ref returns the stored original `content`
+verbatim — never recompressed. An unknown or evicted ref returns an
+`isError` result telling the model to re-run the original call.
+
+The store is **per-process memory**: restart the proxy and all refs die.
+It is bounded (default 256 entries / 64 MiB, LRU eviction) so a long
+session can't grow it forever. Flags: `--no-expand` disables the store,
+the tool, and the note entirely; `--expand-cache N` changes the entry cap.
 
 ## Build
 
@@ -78,6 +102,7 @@ The size drop is mostly leanprompt's redundancy filter collapsing the 25 near-id
 - **`tasks/list` and `tasks/cancel` aren't proxied** — only the two methods that can carry a large payload (`tasks/get` for status, `tasks/result` for the deferred result) are handled.
 - **Everything else is forwarded verbatim, not compressed.** The downstream capabilities mirror whatever the upstream advertises: `resources/*`, `prompts/*`, `logging/setLevel`, `completion/complete`, `ping`, `roots/list`, and notifications (`list_changed`, `resources/updated`, `notifications/message`, `progress`, `roots/list_changed`) all pass through untouched. Resource contents in particular can be large and are not compressed yet.
 - **Only protocol surface the SDK's schemas know is forwarded.** A custom request or notification method outside the standard set is still not relayed.
+- **The expand cache is per-process and bounded.** Restarting the proxy loses all refs, and LRU eviction can expire a ref mid-session — the model sees an `isError` telling it to re-run the original call in either case.
 
 ## Publishing
 

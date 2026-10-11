@@ -7,6 +7,8 @@
 import { Middleware } from "leanprompt";
 import type { CompressionStats } from "leanprompt";
 
+import type { ExpandStore } from "./expand-store.js";
+
 /** SEP-2133 style reverse-DNS extension identifier for our stats side-channel. */
 export const EXT_ID = "io.leanprompt/compression-stats";
 
@@ -56,6 +58,7 @@ function statsMeta(stats: CompressionStats): Record<string, unknown> | null {
 export function compressToolResult(
     result: ToolResultLike,
     mw: Middleware,
+    store?: ExpandStore,
 ): ToolResultLike {
     const [[compressedMsg], stats] = mw.compressMessages([
         { role: "user", content: result.content },
@@ -66,10 +69,32 @@ export function compressToolResult(
         return result;
     }
 
+    const content = Array.isArray(compressedMsg.content)
+        ? [...compressedMsg.content]
+        : [...result.content];
+
+    let expandRef: string | undefined;
+    if (store !== undefined) {
+        expandRef = store.put(result.content, stats.inputTokens);
+        content.push({
+            type: "text",
+            text:
+                `[leanprompt] This tool result was compressed from ` +
+                `${stats.inputTokens} to ${stats.outputTokens} estimated tokens ` +
+                `(${Math.round((1 - stats.ratio) * 100)}% removed). Only prose ` +
+                `was condensed; code, JSON and errors were kept verbatim. If a ` +
+                `detail seems missing, call the leanprompt_expand tool with ` +
+                `ref "${expandRef}" to get the original output.`,
+        });
+    }
+
     return {
         ...result,
-        content: Array.isArray(compressedMsg.content) ? compressedMsg.content : result.content,
-        _meta: { ...result._meta, [EXT_ID]: meta },
+        content,
+        _meta: {
+            ...result._meta,
+            [EXT_ID]: expandRef === undefined ? meta : { ...meta, expandRef },
+        },
     };
 }
 

@@ -29,6 +29,17 @@ AbortSignals so `notifications/cancelled` reaches upstream with the correct
 request id. `tools/call`, `tasks/get`, `tasks/result`, and
 `sampling/createMessage` are compressed/handled exactly as before.
 
+**mcp-proxy 0.3.0** — lossless by reference: every result the proxy
+actually compresses now keeps its original `content` in a bounded
+per-process store (256 entries / 64 MiB, LRU) and appends a `[leanprompt]`
+note telling the model it was compressed, from how many tokens to how
+many, and that it can recover the original by calling the new
+`leanprompt_expand` tool with the quoted `ref`. The tool answers locally
+(verbatim, never recompressed), is always listed in `tools/list` (the only
+tool when the wrapped server exposes none), and returns `isError` for
+unknown or evicted refs. `--no-expand` disables store + tool + note
+entirely; `--expand-cache N` tunes the entry cap.
+
 ## [0.3.0] — 2026-10-11
 
 This is a behavior-changing minor release: the middleware pipeline order,

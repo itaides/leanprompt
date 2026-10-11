@@ -29,6 +29,27 @@ one-method `HttpPost` trait with whatever HTTP client you already use
 cargo test    # includes the golden-vector parity suite
 ```
 
+## `serde` feature (opt-in)
+
+If your project already depends on `serde_json`, enable the `serde`
+feature for zero-cost interop with the in-crate `json::Value` — no
+serialize/parse round-trip:
+
+```toml
+leanprompt = { version = "0.4", features = ["serde"] }
+```
+
+```rust
+use leanprompt::serde_conv::{messages_from_json, messages_to_json};
+
+let messages: Vec<serde_json::Value> = /* … */;
+let (compressed, _stats) = mw.compress_messages(&messages_from_json(&messages));
+let back: Vec<serde_json::Value> = messages_to_json(&compressed);
+```
+
+Off by default: the default build stays dependency-free, and the in-crate
+JSON implementation still does all parsing inside the pipeline.
+
 ## Publishing (crates.io)
 
 ```bash

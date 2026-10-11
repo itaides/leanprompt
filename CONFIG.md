@@ -109,6 +109,11 @@ to `0` to disable the recency protection; in Go, `0` means the default --
 use `ProtectLastTurnsDisabled: true` to disable (system messages are still
 exempt in all languages).
 
+This setting also decides *when* a message is first compressed, and so when
+the provider's prompt-cache prefix changes for it -- see the README section
+"Interaction with provider prompt caching". Raise it on cache-heavy agent
+sessions.
+
 ```ts
 { protect: { lastTurns: 4 } }          // or 0 to disable
 ```

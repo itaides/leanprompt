@@ -189,6 +189,53 @@ real English tokens, and `leanpromptTokensSaved` overstates English savings
 by a similar factor. Use the ratio, not the absolute count, when comparing
 against your provider's bill.
 
+## Interaction with provider prompt caching
+
+Anthropic and OpenAI discount cached prompt prefixes heavily (typically 90%
+and 50% of input price). Compression changes bytes, so it interacts with that
+cache in a specific, predictable way:
+
+- Each message is compressed **once**: on the turn it leaves the
+  `protect.lastTurns` window (default: the last 2 messages are verbatim).
+  Because `Extract` is deterministic, its output for that message is then
+  identical on every later turn, so the prefix is stable again from the
+  next request on.
+- The cost is therefore one cache miss per message, roughly
+  `lastTurns` turns after it was sent — not a miss on every request.
+- Dedup and purge-errors change the prefix when they fire (a dropped
+  duplicate shifts everything after it). Both are default-on; disable them
+  via `strategies` if a stable prefix matters more than the savings.
+- `SelfLLM` is *not* deterministic (it calls a model), so routing to it
+  re-invalidates the prefix whenever the summary differs between calls. Use
+  it only where cache hits are not expected anyway.
+
+Rule of thumb: for long agent sessions where the cache is doing most of the
+work, raise `protect.lastTurns` so compression happens further behind the
+live turns, and prefer `extract` over `selfllm`.
+
+## Trust boundaries
+
+Compressing trusted instructions and untrusted content (web pages, tool
+output, retrieved documents) under one shared budget is a known attack
+surface: an adversary who controls the untrusted part can steer a lossy
+compressor into dropping a guardrail (see
+[arXiv:2510.22963](https://arxiv.org/abs/2510.22963)). leanprompt's design
+keeps those inputs apart:
+
+- `system` messages are never compressed, deduped or purged, under any
+  configuration.
+- Compression is strictly **per message**: budget and sentence ranking never
+  cross a message boundary, so content in one message cannot influence what
+  survives in another.
+- Prohibitions (`do not`, `never`, `must not`) are kept unconditionally
+  inside the message they appear in; code, JSON, errors and tool-call blocks
+  pass through verbatim.
+
+What it does **not** do: it does not detect prompt injection, and extractive
+compression of a message does not remove an injected instruction from it.
+Scan untrusted content before it enters the pipeline if that is a concern.
+See [SECURITY.md](SECURITY.md#trust-boundaries) for the threat model.
+
 ## Commands / test reference
 
 | Language | Test | Lint / typecheck | Regenerate parity vectors |
